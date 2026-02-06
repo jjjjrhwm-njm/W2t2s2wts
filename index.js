@@ -3,29 +3,19 @@ const {
     default: makeWASocket, 
     DisconnectReason, 
     useMultiFileAuthState, 
-    downloadMediaMessage,
-    makeCacheableSignalKeyStore
+    downloadMediaMessage
 } = require("@whiskeysockets/baileys");
 const pino = require("pino");
-const admin = require("firebase-admin");
 const express = require("express");
 const { getAIResponse } = require("./core/ai");
 
-// 1. إعداد خادم Express للحفاظ على تشغيل البوت في Render
+// 1. تشغيل سيرفر بسيط لمنع ريندر من إغلاق البوت
 const app = express();
-app.get("/", (req, res) => res.send("البوت يعمل بنجاح! 🚀"));
+app.get("/", (req, res) => res.send("البوت شغال بنجاح! 🚀"));
 app.listen(process.env.PORT || 3000);
 
-// 2. إعداد Firebase لإدارة الجلسة سحابياً
-if (!admin.apps.length) {
-    admin.initializeApp({
-        credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_CONFIG))
-    });
-}
-const db = admin.firestore();
-
 async function startBot() {
-    // ملاحظة: للتطوير الاحترافي، يفضل دمج MultiFileAuthState مع Firebase لضمان الاستقرار
+    // إعداد الجلسة (تأكد من وجود مجلد auth_info أو سيتم إنشاؤه)
     const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
     const sock = makeWASocket({
@@ -35,10 +25,10 @@ async function startBot() {
         browser: ["Musaid Rashed", "Chrome", "1.0.0"]
     });
 
-    // حفظ تحديثات الجلسة
+    // حفظ بيانات الجلسة
     sock.ev.on("creds.update", saveCreds);
 
-    // 3. معالجة الرسائل القادمة
+    // 2. معالجة الرسائل (الصور والنصوص)
     sock.ev.on("messages.upsert", async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
@@ -50,4 +40,32 @@ async function startBot() {
         try {
             let response;
             if (isImage) {
-                //
+                // تحميل الصورة وإرسالها لـ Gemini
+                const buffer = await downloadMediaMessage(msg, 'buffer', {});
+                const caption = msg.message.imageMessage.caption || "";
+                response = await getAIResponse(jid, caption, true, buffer);
+            } else {
+                // معالجة النص عبر Groq
+                response = await getAIResponse(jid, text);
+            }
+            // إرسال الرد
+            await sock.sendMessage(jid, { text: response });
+        } catch (error) {
+            console.error("خطأ في المعالجة:", error.message);
+        }
+    });
+
+    // 3. إدارة الاتصال
+    sock.ev.on("connection.update", (update) => {
+        const { connection, lastDisconnect } = update;
+        if (connection === "close") {
+            const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
+            if (shouldReconnect) startBot();
+        } else if (connection === "open") {
+            console.log("تم الاتصال بنجاح! ✅");
+        }
+    });
+}
+
+// تشغيل البوت
+startBot();
