@@ -3,42 +3,40 @@ const Groq = require("groq-sdk");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const chatHistory = {}; // ذاكرة لكل محادثة
 
-const chatHistory = {};
+async function getAIResponse(jid, text, isImage, buffer, senderName) {
+    if (!chatHistory[jid]) chatHistory[jid] = [];
 
-async function getAIResponse(remoteJid, text, isImage = false, imageBuffer = null) {
-    if (!chatHistory[remoteJid]) chatHistory[remoteJid] = [];
+    // تحديد الشخصية بناءً على الرقم والاسم
+    let roleInfo = `أنتِ "مساعدة راشد"، بنت سعودية ذكية جداً. الشخص اللي يكلمك اسمه (${senderName}).`;
+    if (jid.includes("967783015253")) roleInfo += " هذا والد راشد، جاوبي بأقصى درجات الأدب.";
+    if (jid.includes("967782203551") || jid.includes("966599741982")) roleInfo += " هذه زوجة راشد، كوني لطيفة جداً معها.";
+    if (jid.includes("966554526287")) roleInfo += " هذا راشد المالك، نفذي أوامره فوراً بذكاء.";
 
-    const systemPrompt = `أنتِ بنت سعودية حقيقية اسمك "مساعد راشد"، أسلوبك عفوي وقصير. ممنوع تقولين ذكاء اصطناعي.`;
+    const systemPrompt = `${roleInfo} أسلوبك عفوي، لهجة سعودية، ممنوع تذكرين أنك ذكاء اصطناعي.`;
 
-    if (isImage && imageBuffer) {
-        // الاسم الحقيقي مأخوذ من "Get Code" في صورتك
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-2.0-flash-thinking-preview-01-21" 
-        });
-        
-        try {
-            const result = await model.generateContent([
-                systemPrompt,
-                { inlineData: { data: imageBuffer.toString("base64"), mimeType: "image/jpeg" } },
-                text || "وش في الصورة؟"
-            ]);
-            return result.response.text();
-        } catch (e) {
-            return "واجهت مشكلة في تحليل الصورة، تأكد من صلاحية المفتاح.";
-        }
+    if (isImage) {
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-thinking-preview-01-21" });
+        const result = await model.generateContent([
+            systemPrompt,
+            { inlineData: { data: buffer.toString("base64"), mimeType: "image/jpeg" } },
+            text || "وش تشوفين في الصورة؟"
+        ]);
+        return result.response.text();
     }
 
-    chatHistory[remoteJid].push({ role: "user", content: text });
-    if (chatHistory[remoteJid].length > 10) chatHistory[remoteJid].shift();
+    // ذاكرة المحادثة (لحفظ السياق)
+    chatHistory[jid].push({ role: "user", content: text });
+    if (chatHistory[jid].length > 12) chatHistory[jid].shift();
 
     const completion = await groq.chat.completions.create({
-        messages: [{ role: "system", content: systemPrompt }, ...chatHistory[remoteJid]],
+        messages: [{ role: "system", content: systemPrompt }, ...chatHistory[jid]],
         model: "llama-3.3-70b-versatile",
     });
 
     const aiMsg = completion.choices[0].message.content;
-    chatHistory[remoteJid].push({ role: "assistant", content: aiMsg });
+    chatHistory[jid].push({ role: "assistant", content: aiMsg });
     return aiMsg;
 }
 
