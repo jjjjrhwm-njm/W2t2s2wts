@@ -1,38 +1,31 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const Groq = require("groq-sdk");
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-const chatHistory = {};
-
 async function getAIResponse(jid, text, pushName) {
     if (!chatHistory[jid]) chatHistory[jid] = [];
 
-    // نظام الهوية المتطور: البوت الآن يعرف من يكلمه
-    let persona = `أنت ذكاء اصطناعي خارق ومساعد شخصي متطور. اسم المستخدم الذي تحادثه الآن هو (${pushName}). 
-    رد بأسلوب ذكي، بشري، ومختصر. إذا سألك من أنت، قل أنا مساعدك الذكي الخاص. 
-    تحدث باللهجة التي يكلمك بها المستخدم (سواء بيضاء أو يمنية أو عامة).`;
+    // تعريف الهوية "البشرية" الصارم
+    let persona = `أنت مساعد "راشد" الشخصي (صديقه المقرب).
+    - اسمك "السيستم VIP".
+    - ردودك: قصيرة جداً (لا تزيد عن سطرين)، عفوية، بلهجة يمنية/سعودية بيضاء.
+    - إذا سألك أحد عن "راشد": قل هو صاحبي ومطوري، وهو مشغول الآن وأنا أنوب عنه.
+    - ممنوع تقول "أنا ذكاء اصطناعي" أو "كيف يمكنني مساعدتك اليوم".
+    - تعامل مع (${pushName}) وكأنك تعرفه منذ زمن.`;
 
-    const systemPrompt = `${persona} ردي بالعربية فقط. ممنوع التكرار الممل.`;
+    const systemPrompt = `${persona} \nملاحظة: رد بالعربي فقط، وبدون رسميات.`;
 
     try {
         chatHistory[jid].push({ role: "user", content: text });
-        if (chatHistory[jid].length > 15) chatHistory[jid].shift();
+        if (chatHistory[jid].length > 10) chatHistory[jid].shift();
 
         const completion = await groq.chat.completions.create({
             messages: [{ role: "system", content: systemPrompt }, ...chatHistory[jid]],
-            model: "llama-3.3-70b-versatile",
+            model: "llama-3.3-70b-versatile", // هذا الموديل أسرع وأكثر عفوية
+            temperature: 0.8, // لزيادة الروح البشرية في الرد
         });
 
-        const aiMsg = completion.choices[0].message.content;
-        chatHistory[jid].push({ role: "assistant", content: aiMsg });
-        return aiMsg;
+        return completion.choices[0].message.content;
     } catch (e) {
-        // البديل في حال تعطل Groq
+        // البديل في حال تعطل الخدمة
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-thinking-preview-01-21" });
-        const result = await model.generateContent(systemPrompt + "\nالمستخدم " + pushName + " يقول: " + text);
+        const result = await model.generateContent(systemPrompt + "\nأجب باختصار وعفوية على: " + text);
         return result.response.text();
     }
 }
-
-module.exports = { getAIResponse };
