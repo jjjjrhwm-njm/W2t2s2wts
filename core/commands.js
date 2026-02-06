@@ -682,4 +682,10 @@ const secretaryCommands = new SecretaryCommandSystem();
 
 // دالة رئيسية للتوافق
 function handleManualCommand(text, jid, isOwner, pushName) {
-    return secretaryCommands.handleManualCommand(text, jid, isOwner
+    return secretaryCommands.handleManualCommand(text, jid, isOwner, pushName);
+}
+
+module.exports = { 
+    handleManualCommand,
+    secretaryCommands  // للاستخدام المتقدم
+};
