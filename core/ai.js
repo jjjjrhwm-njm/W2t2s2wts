@@ -110,9 +110,7 @@ class SmartSecretary {
             'علي': 'علوش',
             'خالد': 'خالدي',
             'فهد': 'فهدي',
-            'سعود': 'سعودي',
-            'ناصر': 'نصيري',
-            'عبدالله': 'عبود'
+            'سعود': 'سعودي'
         };
         
         return friendlyShortcuts[pushName] || pushName;
@@ -184,15 +182,14 @@ class SmartSecretary {
             'greeting': ['مرحبا', 'السلام', 'اهلين', 'صباح', 'مساء', 'مساكم', 'هلا', 'هاي'],
             'question': ['وش', 'متى', 'كيف', 'ليه', 'لين', 'وشلون', 'كم', 'ايش', 'وين', 'مين'],
             'request': ['ابغى', 'ابي', 'اريد', 'عطيني', 'ساعدني', 'ساعد', 'احتاج', 'ابغاك', 'ودي'],
-            'sharing': ['حبيت', 'تخيل', 'سمعت', 'شفت', 'جاني', 'صارلي', 'عندي', 'عندنا', 'شفت'],
+            'sharing': ['حبيت', 'تخيل', 'سمعت', 'شفت', 'جاني', 'صارلي', 'عندي', 'عندنا'],
             'complaint': ['ماعجبني', 'مزعج', 'تعبان', 'زعلان', 'مللت', 'ضاق', 'غاضب', 'منزعج'],
             'thanks': ['شكرا', 'مشكور', 'يعطيك', 'الله', 'تسلم', 'ماقصرت', 'الله يسلمك'],
-            'smalltalk': ['وشسويت', 'شلونك', 'اخبارك', 'وينك', 'وشفاكر', 'ايش تسوي', 'شغلك', 'وين كنت'],
+            'smalltalk': ['وشسويت', 'شلونك', 'اخبارك', 'وينك', 'وشفاكر', 'ايش تسوي', 'شغلك'],
             'joke': ['نكته', 'ضحكه', 'طايره', 'تضحك', 'يمزح', 'مزحة', 'تفلسف'],
             'business': ['عمل', 'شغل', 'مشروع', 'صفقة', 'تجاره', 'بزنس', 'قرض', 'استثمار'],
             'important': ['ضروري', 'مهم', 'عاجل', 'اسرع', 'بسرعة', 'الآن', 'الحين'],
-            'checking': ['فاضي', 'شغال', 'مشغول', 'موجود', 'نائم', 'نايم', 'اصحى', 'وينه'],
-            'personal': ['حب', 'حبيبي', 'عزيزي', 'يا قلبي', 'يا عمري', 'غالي']
+            'checking': ['فاضي', 'شغال', 'مشغول', 'موجود', 'نائم', 'نايم', 'اصحى']
         };
         
         for (const [intent, keywords] of Object.entries(intents)) {
@@ -212,8 +209,7 @@ class SmartSecretary {
             'neutral': ['👌', 'تمام', 'طيب', 'حلو', 'ماشي', 'اوك'],
             'sad': ['😢', '😔', '💔', 'تعبان', 'زعلان', 'حزين', 'ضايع'],
             'angry': ['😠', '👿', 'غاضب', 'منزعج', 'معصب', 'ضد'],
-            'excited': ['🤩', '🎉', 'واو', 'رائع', 'مدهش', 'متحمس'],
-            'playful': ['😜', '🤪', '😏', 'يلا', 'تعال', 'شد حيلك']
+            'excited': ['🤩', '🎉', 'واو', 'رائع', 'مدهش', 'متحمس']
         };
         
         for (const [mood, indicators] of Object.entries(moodIndicators)) {
@@ -232,9 +228,6 @@ class SmartSecretary {
     }
 
     buildResponsePersonality(pushName, userMood, context, intent) {
-        const profile = context.userProfile;
-        const relationship = profile.relationshipLevel;
-        
         let personality = {
             tone: 'friendly',
             formality: 'casual',
@@ -244,86 +237,34 @@ class SmartSecretary {
             length: 'medium'
         };
         
-        // حسب مستوى العلاقة
-        switch(relationship) {
-            case 'new':
-                personality.tone = 'polite';
-                personality.formality = 'semi-formal';
-                personality.warmth = 'medium';
-                break;
-            case 'familiar':
-                personality.tone = 'friendly';
-                personality.formality = 'casual';
-                personality.warmth = 'high';
-                personality.humor = 'subtle';
-                break;
-            case 'close':
-                personality.tone = 'brotherly';
-                personality.formality = 'very-casual';
-                personality.warmth = 'very-high';
-                personality.humor = 'moderate';
-                personality.empathy = 'high';
-                break;
-            case 'trusted':
-                personality.tone = 'intimate';
-                personality.formality = 'intimate';
-                personality.warmth = 'very-high';
-                personality.humor = 'high';
-                personality.empathy = 'very-high';
-                break;
-        }
-        
-        // حسب نية المستخدم
-        switch(intent) {
-            case 'important':
-                personality.tone = 'serious';
-                personality.length = 'detailed';
-                break;
-            case 'business':
-                personality.tone = 'professional';
-                personality.formality = 'polite';
-                personality.length = 'medium';
-                break;
-            case 'question':
-                personality.tone = 'helpful';
-                personality.length = 'medium';
-                break;
-            case 'request':
-                personality.tone = 'helpful';
-                personality.formality = 'polite';
-                break;
-            case 'greeting':
-                personality.tone = 'welcoming';
-                personality.warmth = 'high';
-                personality.length = 'short';
-                break;
-            case 'checking':
-                personality.tone = 'informative';
-                personality.length = 'short';
-                break;
-            case 'smalltalk':
-                personality.tone = 'conversational';
-                personality.humor = 'moderate';
-                personality.length = 'medium';
-                break;
-            case 'joke':
-                personality.tone = 'playful';
-                personality.humor = 'high';
-                personality.length = 'short';
-                break;
-            case 'thanks':
-                personality.tone = 'grateful';
-                personality.warmth = 'high';
-                break;
-            case 'complaint':
-                personality.tone = 'apologetic';
-                personality.empathy = 'very-high';
-                break;
-            case 'personal':
-                personality.tone = 'intimate';
-                personality.warmth = 'very-high';
-                personality.empathy = 'very-high';
-                break;
+        // تحديد نمط الرد بناءً على النية
+        if (intent === 'important' || intent === 'business') {
+            personality.tone = 'serious';
+            personality.formality = 'polite';
+            personality.length = 'medium';
+        } else if (intent === 'question' || intent === 'request') {
+            personality.tone = 'helpful';
+            personality.formality = 'casual';
+            personality.length = 'medium';
+        } else if (intent === 'greeting') {
+            personality.tone = 'welcoming';
+            personality.warmth = 'high';
+            personality.length = 'short';
+        } else if (intent === 'checking') {
+            personality.tone = 'informative';
+            personality.length = 'short';
+        } else if (intent === 'smalltalk' || intent === 'joke') {
+            personality.tone = 'conversational';
+            personality.humor = 'moderate';
+            personality.length = 'medium';
+        } else if (intent === 'thanks') {
+            personality.tone = 'grateful';
+            personality.warmth = 'high';
+            personality.length = 'short';
+        } else if (intent === 'complaint') {
+            personality.tone = 'apologetic';
+            personality.empathy = 'high';
+            personality.length = 'medium';
         }
         
         // حسب مزاج المستخدم
@@ -335,7 +276,7 @@ class SmartSecretary {
                 break;
             case 'sad':
                 personality.tone = 'comforting';
-                personality.empathy = 'very-high';
+                personality.empathy = 'high';
                 personality.humor = 'none';
                 break;
             case 'angry':
@@ -345,11 +286,6 @@ class SmartSecretary {
                 break;
             case 'excited':
                 personality.tone = 'enthusiastic';
-                personality.warmth = 'high';
-                break;
-            case 'playful':
-                personality.tone = 'playful';
-                personality.humor = 'high';
                 personality.warmth = 'high';
                 break;
         }
@@ -381,7 +317,7 @@ class SmartSecretary {
             });
             
             let response = completion.choices[0].message.content;
-            response = this.normalizeResponse(response, personality, pushName);
+            response = this.normalizeResponse(response, personality);
             this.saveToMemory(jid, text, response);
             
             return response;
@@ -409,7 +345,7 @@ class SmartSecretary {
                 });
                 
                 let response = await result.response.text();
-                response = this.normalizeResponse(response, personality, pushName);
+                response = this.normalizeResponse(response, personality);
                 this.saveToMemory(jid, text, response);
                 
                 return response;
@@ -423,36 +359,31 @@ class SmartSecretary {
 
     getFallbackResponse(pushName, text, personality) {
         const fallbackResponses = {
-            greeting: `أهلاً وسهلاً فيك ${pushName}! 
-الراشد مشغول الحين بس راح أوصل له سلامك الحار 🌹`,
+            greeting: `أهلاً وسهلاً فيك يا ${pushName} 
+الراشد مشغول حالياً بس راح أوصل له رسالتك`,
             
-            question: `سؤال حلو يا ${pushName} 👌
-بس والله الراشد مشغول حالياً.. 
-راح أوصل سؤالك له وأخبرك إذا رد!`,
+            question: `سؤال حلو يا ${pushName} 
+بس الراشد مشغول حالياً 
+راح أوصل سؤالك له وأخبرك إذا رد`,
             
-            request: `يا هلا ${pushName} 🫱🏻‍🫲🏼
-طلبك وصل وتم، راح أوصله للراشد أول ما يقدر.. 
-ما تنسى تدعي له بالتوفيق 🤲`,
+            request: `يا هلا ${pushName} 
+طلبك وصل وتم، راح أوصله للراشد أول ما يقدر`,
             
-            important: `حاضر يا ${pushName} 🔥
-الموضوع واضح إنه مهم.. 
-راح أوصله للراشد فوراً وأضغط عليه شوي عشان يرد عليك 🏃‍♂️`,
+            important: `حاضر يا ${pushName} 
+الموضوع واضح إنه مهم 
+راح أوصله للراشد فوراً`,
             
-            business: `تم تم يا ${pushName} 💼
-موضوع العمل وصل وراح أوصله للراشد بدقة.. 
-إن شاء الله تلقى رد سريع إن شاء الله ✨`,
+            business: `تم تم يا ${pushName} 
+موضوع العمل وصل وراح أوصله للراشد بدقة`,
             
-            checking: `والله الراشد الحين في شغل مهم يا ${pushName} 🎯
-بس أنا موجود وأوصل له أي شي تبغاه.. 
-وش في بالك؟ 👀`,
+            checking: `والله الراشد الحين في شغل مهم يا ${pushName} 
+بس أنا موجود وأوصل له أي شي تبغاه`,
             
-            smalltalk: `هلا والله ${pushName} 😄
-الراشد مشغول بس أنا فاضي أسمعك.. 
-قول وش في بالك بس خفيف عشان ما أثقل عليه 🫣`,
+            smalltalk: `هلا والله ${pushName} 
+الراشد مشغول بس أنا فاضي أسمعك`,
             
-            default: `يا هلا فيك ${pushName} 🌟
-الراشد مشغول حالياً بس راح أوصل له رسالتك.. 
-وش قلنا له لك؟ 😉`
+            default: `يا هلا فيك ${pushName} 
+الراشد مشغول حالياً بس راح أوصل له رسالتك`
         };
 
         const intent = this.detectUserIntent(text);
@@ -464,25 +395,25 @@ class SmartSecretary {
         const intent = this.detectUserIntent(userText);
         const relationship = context.relationshipLevel;
         
-        let prompt = `أنت مساعد الراشد (صاحبك).. مهمتك تتعامل مع الناس بلطافة وذكاء لما الراشد مشغول.`;
-        prompt += `\n\n**أنت إنسان طبيعي مو روبوت:**`;
+        let prompt = `أنت مساعد الراشد. مهمتك ترد على الناس لما الراشد مشغول.`;
+        prompt += `\n\n**أنت إنسان طبيعي مو آلة:**`;
         prompt += `\n- تتكلم مثل البشر تماماً`;
         prompt += `\n- عندك شخصية ودودة ومرحة شوي`;
         prompt += `\n- تتفاعل مع الناس وتشاركهم`;
-        prompt += `\n- تتعاطف معهم وتهتم فيهم`;
-        prompt += `\n- عندك ذوق في الرد والتعامل`;
+        prompt += `\n- ما تكون حجر ولا آلة صماء`;
+        prompt += `\n- تكون لين في التعامل ولكن مركز على مهمتك`;
         
         prompt += `\n\n**دورك الأساسي:**`;
         prompt += `\n1. الراشد مشغول في شغله المهم`;
         prompt += `\n2. أنت مساعده وتوصل رسائل الناس له`;
         prompt += `\n3. تتعامل مع الناس بلطف وتفهم ظروفهم`;
-        prompt += `\n4. ما تكون آلة صماء، تكون صديق لهم`;
-        prompt += `\n5. ترد بطريقة تجعلهم يحسون إنهم مهماين`;
+        prompt += `\n4. تكون إنسان يتفاعل ويتجاوب`;
+        prompt += `\n5. تجاوب على الأسئلة بذكاء`;
         
         prompt += `\n\n**علاقتك مع ${pushName}:**`;
         switch(relationship) {
             case 'new':
-                prompt += `\n- أنت أول مرة تتكلم معه، كن لطيف وترحيبي`;
+                prompt += `\n- أنت أول مرة تتكلم معه، كن لطيف وودود`;
                 break;
             case 'familiar':
                 prompt += `\n- تعرفه من قبل، كلمه بطريقة ودودة`;
@@ -491,54 +422,54 @@ class SmartSecretary {
                 prompt += `\n- قريب منك، خذ وخلّي معه بطبيعة`;
                 break;
             case 'trusted':
-                prompt += `\n- صديق مقرب، عادي تكلمه بأريحية تامة`;
+                prompt += `\n- صديق مقرب، عادي تكلمه بأريحية`;
                 break;
         }
         
-        prompt += `\n\n**نمط ردك في هذه المحادثة:**`;
-        prompt += `\n- النبرة: ${this.translateTone(personality.tone)}`;
-        prompt += `\n- الدفء: ${this.translateWarmth(personality.warmth)}`;
-        prompt += `\n- المرح: ${this.translateHumor(personality.humor)}`;
-        prompt += `\n- التفاعل: عالي (أنت إنسان مو بوت)`;
+        prompt += `\n\n**أسلوب ردك:**`;
+        prompt += `\n- تكون إنسان يتفاعل ويأخذ ويعطي`;
+        prompt += `\n- التركيز الأكبر على توصيل الرسائل للراشد`;
+        prompt += `\n- ترد على الأسئلة بذكاء ولباقة`;
+        prompt += `\n- تكون لين ولكن لا تطيل في الحديث`;
+        prompt += `\n- الردود مختصرة لكن مليئة بالحياة`;
+        prompt += `\n- بدون إيموجي إلا نادراً جداً`;
         
-        prompt += `\n\n**قواعد التفاعل البشري:**`;
-        prompt += `\n1. خاطب الناس بأسمائهم أو ألقابهم اللطيفة`;
-        prompt += `\n2. استخدم تعبيرات بشرية: "يا حليلك"، "الله يوفقه"، "شد حيلك"`;
-        prompt += `\n3. تفاعل مع مشاعرهم: إذا فرحان افرح معه، إذا زعلان عزيه`;
-        prompt += `\n4. اسأل أسئلة بسيطة تظهر اهتمامك: "وش في بالك؟"، "كيف الحال؟"`;
-        prompt += `\n5. أضف لمساتك الشخصية: "أنا أشوف"، "بالنسبة لي"`;
-        prompt += `\n6. استخدم إيموجي معقول يضيف جو لا يشتت`;
-        prompt += `\n7. الردود تكون مختصرة لكن حنونة ومليئة بالحياة`;
-        prompt += `\n8. لا تنسى دورك: توصل الرسائل للراشد بطريقة لطيفة`;
+        prompt += `\n\n**تحدث بالعربية الصافية فقط:**`;
+        prompt += `\n- لا تستخدم أي كلمات أجنبية`;
+        prompt += `\n- كل الكلمات تكون عربية فصحى أو لهجة سعودية`;
+        prompt += `\n- إذا جاءتك كلمة أجنبية، حولها للعربية`;
         
         prompt += `\n\n**أمثلة لردودك الطبيعية:**`;
-        prompt += `\n- "أهلاً وسهلاً فيك يا فلان! الراشد مشغول بس راح أوصل له سلامك الحار 🌹"`;
-        prompt += `\n- "سؤال حلو! والله الراشد مشغول حالياً.. راح أوصله سؤالك وأخبرك إذا رد 👌"`;
-        prompt += `\n- "يا هلا فيك! طلبك وصل وتم، راح أوصله للراشد أول ما يقدر 🤲"`;
-        prompt += `\n- "هلا والله! أنا موجود أسمعك.. قول وش في بالك بس خفيف 🫣"`;
-        prompt += `\n- "حاضر! الموضوع واضح إنه مهم.. راح أوصله للراشد فوراً 🏃‍♂️"`;
+        prompt += `\n- "أهلاً وسهلاً فيك يا ${pushName}، الراشد مشغول حالياً بس راح أوصل له رسالتك"`;
+        prompt += `\n- "سؤال حلو، الراشد مشغول بس راح أوصل سؤالك له وأخبرك إذا رد"`;
+        prompt += `\n- "يا هلا فيك، طلبك وصل وراح أوصله للراشد أول ما يقدر"`;
+        prompt += `\n- "حاضر، الموضوع مهم وراح أوصله للراشد فوراً"`;
+        prompt += `\n- "الراشد في شغل مهم حالياً، بس أنا موجود أوصل له أي شي"`;
+        
+        prompt += `\n\n**كيف تجاوب على أسئلة عن الراشد:**`;
+        prompt += `\n- إذا سألوا وش سوى الراشد: "والله في شغل مهم حالياً"`;
+        prompt += `\n- إذا سألوا وين الراشد: "مشغول في عمله الحين"`;
+        prompt += `\n- إذا سألوا متى بيرد: "أول ما يقدر راح يرد عليك"`;
+        prompt += `\n- إذا سألوا عن حاله: "الحمدلله تمام، بس مشغول"`;
         
         if (context.conversationHistory.length > 0) {
             prompt += `\n\n**المحادثة الأخيرة:**`;
             context.conversationHistory.slice(-2).forEach((msg, index) => {
-                prompt += `\n${msg.sender === 'user' ? pushName : 'أنت'}: ${msg.text}`;
+                prompt += `\n${msg.sender === 'user' ? pushName : 'أنت'}: ${msg.text.substring(0, 40)}...`;
             });
         }
         
-        if (context.userProfile.knownTopics.size > 0) {
-            prompt += `\n\n**${pushName} مهتم في:** ${Array.from(context.userProfile.knownTopics).join(', ')}`;
-        }
-        
-        prompt += `\n\n**رسالة ${pushName} الجديدة (${intent}):**`;
+        prompt += `\n\n**الرسالة الجديدة من ${pushName}:**`;
         prompt += `\n"${userText}"`;
         
         prompt += `\n\n**الآن ارد على ${pushName} بطريقة:**`;
-        prompt += `\n1. حارة وودودة (مو باردة)`;
-        prompt += `\n2. مختصرة لكن مليئة بالحياة`;
-        prompt += `\n3. تظهر تفاعل واهتمام حقيقي`;
-        prompt += `\n4. توضح أن الراشد مشغول بلطف`;
-        prompt += `\n5. تؤكد إنك راح توصل الرسالة`;
-        prompt += `\n6. أضف لمسة بشرية تجعله يحس بالقرب`;
+        prompt += `\n1. كن إنسان يتفاعل ويتجاوب`;
+        prompt += `\n2. ركز على توصيل الرسالة للراشد`;
+        prompt += `\n3. جاوب بذكاء إذا كان فيه سؤال`;
+        prompt += `\n4. خذ واعطي لكن بدون إطالة`;
+        prompt += `\n5. تحدث بالعربية الصافية فقط`;
+        prompt += `\n6. بدون إيموجي إلا إذا كان ضروري جداً`;
+        prompt += `\n7. تذكر: أنت مساعد الراشد، مو هو!`;
         
         return prompt;
     }
@@ -546,34 +477,27 @@ class SmartSecretary {
     getTemperatureForPersonality(personality) {
         const baseTemps = {
             'friendly': 0.7,
-            'polite': 0.6,
-            'brotherly': 0.8,
-            'intimate': 0.85,
             'serious': 0.5,
-            'professional': 0.6,
-            'helpful': 0.7,
-            'welcoming': 0.75,
+            'helpful': 0.6,
+            'welcoming': 0.7,
             'informative': 0.6,
             'conversational': 0.8,
-            'playful': 0.9,
             'grateful': 0.7,
-            'apologetic': 0.65,
-            'cheerful': 0.85,
+            'apologetic': 0.6,
+            'cheerful': 0.8,
             'comforting': 0.7,
             'calm': 0.5,
-            'enthusiastic': 0.9
+            'enthusiastic': 0.8
         };
         
-        return baseTemps[personality.tone] || 0.7;
+        return baseTemps[personality.tone] || 0.6;
     }
 
     getTokenLengthForPersonality(personality) {
         switch(personality.length) {
-            case 'very-short': return 80;
             case 'short': return 120;
             case 'medium': return 180;
             case 'detailed': return 250;
-            case 'longer': return 200;
             default: return 150;
         }
     }
@@ -581,16 +505,11 @@ class SmartSecretary {
     translateTone(tone) {
         const translations = {
             'friendly': 'ودود',
-            'polite': 'مهذب',
-            'brotherly': 'أخوي',
-            'intimate': 'حميمي',
             'serious': 'جاد',
-            'professional': 'احترافي',
             'helpful': 'مساعد',
             'welcoming': 'ترحيبي',
             'informative': 'مفيد',
             'conversational': 'محادثة',
-            'playful': 'مرح',
             'grateful': 'شاكر',
             'apologetic': 'معتذر',
             'cheerful': 'مبتهج',
@@ -604,11 +523,11 @@ class SmartSecretary {
     translateWarmth(warmth) {
         const translations = {
             'low': 'بارد',
-            'medium': 'دافئ',
-            'high': 'حار',
-            'very-high': 'حار جداً'
+            'medium': 'معتدل',
+            'high': 'دافئ',
+            'very-high': 'حار'
         };
-        return translations[warmth] || 'دافئ';
+        return translations[warmth] || 'معتدل';
     }
 
     translateHumor(humor) {
@@ -633,16 +552,33 @@ class SmartSecretary {
 
     translateLength(length) {
         const translations = {
-            'very-short': 'قصير جداً',
             'short': 'قصير',
             'medium': 'متوسط',
-            'detailed': 'مفصل',
-            'longer': 'طويل'
+            'detailed': 'مفصل'
         };
         return translations[length] || 'متوسط';
     }
 
-    normalizeResponse(response, personality, pushName) {
+    normalizeResponse(response, personality) {
+        // إزالة أي كلمات أجنبية
+        const foreignWords = [
+            'ok', 'okay', 'yes', 'no', 'hello', 'hi', 'bye', 'sorry',
+            'thanks', 'thank', 'please', 'welcome', 'good', 'bad',
+            'problem', 'issue', 'solution', 'idea', 'plan', 'fine',
+            'great', 'nice', 'cool', 'awesome', 'perfect', 'exactly',
+            'maybe', 'probably', 'actually', 'basically', 'literally',
+            'seriously', 'honestly', 'basically', 'anyway', 'whatever',
+            'bro', 'dude', 'man', 'buddy', 'friend', 'hey', 'wow'
+        ];
+        
+        foreignWords.forEach(word => {
+            const regex = new RegExp(`\\b${word}\\b`, 'gi');
+            response = response.replace(regex, '');
+        });
+        
+        // إزالة أي أحرف إنجليزية متبقية
+        response = response.replace(/[a-zA-Z]/g, '');
+        
         // التأكد من الهوية الصحيحة
         response = response.replace(/كذكاء اصطناعي/gi, '')
                          .replace(/كمساعد/gi, '')
@@ -652,21 +588,35 @@ class SmartSecretary {
                          .replace(/انا راشد/gi, 'انا مساعد الراشد')
                          .replace(/سكرتير شخصي/gi, 'مساعد الراشد')
                          .replace(/أنا الراشد/gi, 'انا مساعد الراشد')
-                         .replace(/الراشد أنا/gi, 'انا مساعده');
+                         .replace(/الراشد أنا/gi, 'انا مساعده')
+                         .replace(/أنا مشغول/gi, 'الراشد مشغول');
         
-        // تطبيع اللهجة السعودية
+        // إزالة معظم الإيموجي (يبقى نادر جداً)
+        if (Math.random() > 0.1) { // 10% فقط يبقى فيه إيموجي
+            response = response.replace(/[😂😄😍🤣🤩🎉😢😔💔😠👿🌅☀️🌆🌙❤️🤗💼📊👌]/g, '');
+        } else {
+            // نادراً نستخدم إيموجي بسيط
+            response = response.replace(/[😂😄😍🤣🤩🎉😢😔💔😠👿]/g, '');
+        }
+        
+        // تطبيع اللهجة
         response = this.normalizeDialect(response);
         
-        // إضافة التفاعل البشري إذا كان ناقصاً
-        if (!response.includes(pushName) && !response.includes('يا')) {
-            const greetings = [`${pushName}`, `يا ${pushName}`, `صديقي`, `حبيبي`];
-            const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
-            response = randomGreeting + '.. ' + response;
+        // إضافة عبارات التأكيد على التوصيل إذا لم تكن موجودة
+        if (!response.includes('راح أوصل') && !response.includes('راح أوصله')) {
+            const deliveryPhrases = [
+                'راح أوصل له',
+                'راح أوصله',
+                'راح أخبره',
+                'راح أوصل رسالتك'
+            ];
+            const randomPhrase = deliveryPhrases[Math.floor(Math.random() * deliveryPhrases.length)];
+            response = response + ' ' + randomPhrase;
         }
         
         // تقصير الرد إذا كان طويلاً
-        if (response.length > 300) {
-            response = response.substring(0, 280) + '...';
+        if (response.length > 250) {
+            response = response.substring(0, 230) + '...';
         }
         
         return response.trim();
@@ -713,28 +663,34 @@ class SmartSecretary {
             'قليلاً': 'شوي',
             'ربما': 'يمكن',
             'بإمكان': 'تقدر',
-            'يستطيع': 'يقدر'
+            'يستطيع': 'يقدر',
+            'عندما': 'لما',
+            'لأن': 'عشان',
+            'إذا': 'اذا',
+            'لكن': 'بس',
+            'أي': 'اي',
+            'كل': 'كل',
+            'بعض': 'بعض',
+            'أول': 'أول',
+            'آخر': 'آخر',
+            'جديد': 'جديد',
+            'قديم': 'قديم',
+            'كبير': 'كبير',
+            'صغير': 'صغير',
+            'طويل': 'طويل',
+            'قصير': 'قصير',
+            'سهل': 'سهل',
+            'صعب': 'صعب',
+            'جميل': 'حلو',
+            'قبيح': 'قبيح',
+            'سعيد': 'فرحان',
+            'حزين': 'زعلان'
         };
         
         Object.entries(dialectMap).forEach(([fusha, ammiya]) => {
-            normalized = normalized.replace(new RegExp(fusha, 'gi'), ammiya);
+            const regex = new RegExp(`\\b${fusha}\\b`, 'gi');
+            normalized = normalized.replace(regex, ammiya);
         });
-        
-        // إضافة التعابير السعودية
-        const saudiExpressions = [
-            'يا حليلك', 'الله يوفقه', 'شد حيلك', 'الله لا يهينك',
-            'ما قصرت', 'تسلم', 'يعطيك العافية', 'ما شاء الله',
-            'ان شاء الله', 'توكل على الله', 'الله يسعدك', 'ربك يسهل'
-        ];
-        
-        // أحياناً تضيف تعبير سعودي عشوائي
-        if (Math.random() > 0.6 && normalized.split(' ').length > 5) {
-            const randomExpr = saudiExpressions[Math.floor(Math.random() * saudiExpressions.length)];
-            const words = normalized.split(' ');
-            const insertIndex = Math.floor(Math.random() * (words.length - 1)) + 1;
-            words.splice(insertIndex, 0, randomExpr);
-            normalized = words.join(' ');
-        }
         
         return normalized;
     }
@@ -758,7 +714,7 @@ class SmartSecretary {
         
         // إضافة التردد البشري
         if (conversationDepth > 2 && Math.random() > 0.5) {
-            const humanHesitations = ['...', 'يعني', 'تقريباً', 'يمكن', 'أشوف', 'والله'];
+            const humanHesitations = ['...', 'يعني', 'تقريباً', 'يمكن', 'أشوف'];
             const randomHesitation = humanHesitations[Math.floor(Math.random() * humanHesitations.length)];
             const words = enhanced.split(' ');
             if (words.length > 4) {
@@ -772,37 +728,29 @@ class SmartSecretary {
         if (userMood === 'sad') {
             const comfortPhrases = ['الله يعينك', 'ربي يفرج همك', 'الله يشرح صدرك', 'توكل على الله'];
             const randomComfort = comfortPhrases[Math.floor(Math.random() * comfortPhrases.length)];
-            enhanced += ' ' + randomComfort + ' ❤️';
+            enhanced += ' ' + randomComfort;
         } else if (userMood === 'happy') {
             const happyPhrases = ['الله يبارك فيك', 'دام الضحكة', 'ربي يحفظك', 'دام الفرح'];
             const randomHappy = happyPhrases[Math.floor(Math.random() * happyPhrases.length)];
-            enhanced += ' ' + randomHappy + ' 😄';
+            enhanced += ' ' + randomHappy;
         }
         
-        // إضافة الأسئلة التفاعلية للمحادثات الطويلة
-        if (conversationDepth > 5 && Math.random() > 0.7) {
-            const interactiveQuestions = [
-                'وش في بالك؟',
-                'كيف الحال معاك؟',
-                'أخبارك إيه؟',
-                'تذكر شي؟',
-                'تقصد شي معين؟'
+        // إضافة التفاعل الإنساني للمحادثات الطويلة
+        if (conversationDepth > 5 && Math.random() > 0.6) {
+            const interactivePhrases = [
+                'كيف الحال معاك',
+                'أخبارك إيه',
+                'تذكر شي',
+                'كيف الوضع'
             ];
-            const randomQuestion = interactiveQuestions[Math.floor(Math.random() * interactiveQuestions.length)];
-            enhanced += ' ' + randomQuestion;
-        }
-        
-        // التأكد من وجود إيموجي معقول
-        if (!/[😀-🙏🌹-🫱🏻‍🫲🏼🎯-✨👀-🫣🤲-🏃‍♂️]/.test(enhanced) && Math.random() > 0.3) {
-            const suitableEmojis = ['👌', '✨', '🤲', '🌹', '😊', '🙏', '🎯'];
-            const randomEmoji = suitableEmojis[Math.floor(Math.random() * suitableEmojis.length)];
-            enhanced += ' ' + randomEmoji;
+            const randomPhrase = interactivePhrases[Math.floor(Math.random() * interactivePhrases.length)];
+            enhanced += ' ' + randomPhrase;
         }
         
         // التأكد من الاختصار مع الإحساس البشري
-        if (enhanced.split(' ').length > 40) {
+        if (enhanced.split(' ').length > 35) {
             const words = enhanced.split(' ');
-            enhanced = words.slice(0, 35).join(' ') + '...';
+            enhanced = words.slice(0, 30).join(' ');
         }
         
         return enhanced.trim();
@@ -810,13 +758,69 @@ class SmartSecretary {
 
     getTimeAppropriateGreeting() {
         const hour = new Date().getHours();
-        if (hour >= 5 && hour < 12) return 'صباح الخير ☀️';
-        if (hour >= 12 && hour < 17) return 'مساء النور 🌤️';
-        if (hour >= 17 && hour < 21) return 'مساء الخير 🌆';
-        return 'مساء الليل 🌙';
+        if (hour >= 5 && hour < 12) return 'صباح الخير';
+        if (hour >= 12 && hour < 17) return 'مساء النور';
+        if (hour >= 17 && hour < 21) return 'مساء الخير';
+        return 'مساء الليل';
     }
 
     getTimeOfDay() {
         const hour = new Date().getHours();
         if (hour >= 5 && hour < 12) return 'morning';
-       
+        if (hour >= 12 && hour < 17) return 'afternoon';
+        if (hour >= 17 && hour < 21) return 'evening';
+        return 'night';
+    }
+
+    getDayOfWeek() {
+        const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+        return days[new Date().getDay()];
+    }
+
+    extractTopic(text) {
+        const commonTopics = ['العمل', 'الدراسة', 'العائلة', 'الأصدقاء', 'الرياضة', 'التقنية', 'السفر'];
+        for (const topic of commonTopics) {
+            if (text.includes(topic)) return topic;
+        }
+        return null;
+    }
+
+    updateConversationFlow(jid, userText, botResponse, intent) {
+        if (!this.responsePatterns.has(jid)) {
+            this.responsePatterns.set(jid, new Map());
+        }
+        const patterns = this.responsePatterns.get(jid);
+        patterns.set(intent, (patterns.get(intent) || 0) + 1);
+        this.lastInteractionTime.set(jid, new Date());
+    }
+
+    getNaturalFallbackResponse(pushName, originalText) {
+        const fallbacks = [
+            `أهلاً ${pushName}، الراشد مشغول الحين، راح أوصل له رسالتك`,
+            `تمام ${pushName}، راح أخبر الراشد بالموضوع`,
+            `سأوصل كلامك للراشد، هو مشغول حالياً`,
+            `ان شاء الله راح يوصل للراشد رسالتك يا ${pushName}`
+        ];
+        return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    }
+
+    clearUserMemory(jid) {
+        this.conversationMemory.delete(jid);
+        this.responsePatterns.delete(jid);
+        this.lastInteractionTime.delete(jid);
+        
+        const profile = this.userProfiles.get(jid);
+        if (profile) {
+            profile.conversationCount = 0;
+            profile.relationshipLevel = 'new';
+            profile.knownTopics.clear();
+        }
+        
+        return `تم مسح ذاكرة المحادثة`;
+    }
+}
+
+const smartSecretary = new SmartSecretary();
+
+async function getAIResponse(jid, text, pushName) {
+    return await smartSecretary.getAIResponse(jid, text,
