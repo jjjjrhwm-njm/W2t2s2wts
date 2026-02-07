@@ -13,13 +13,11 @@ class SecretaryCommandSystem {
     }
 
     initializeNaturalCommands() {
-        // أوامر طبيعية تبدو كمحادثة عادية
         this.registerNaturalCommands();
         this.registerAdminCommands();
     }
 
     registerNaturalCommands() {
-        // الأوامر الأساسية (تظهر كردود طبيعية)
         this.commandRegistry.set('الاوامر', this.handleNaturalHelp.bind(this));
         this.commandRegistry.set('مساعدة', this.handleNaturalHelp.bind(this));
         this.commandRegistry.set('وش تقدر', this.handleCapabilities.bind(this));
@@ -36,10 +34,10 @@ class SecretaryCommandSystem {
         this.commandRegistry.set('حظ', this.handleFortune.bind(this));
         this.commandRegistry.set('نكته', this.handleJoke.bind(this));
         this.commandRegistry.set('حكمه', this.handleWisdom.bind(this));
+        this.commandRegistry.set('حاله', this.handleBotStatus.bind(this));
     }
 
     registerAdminCommands() {
-        // أوامر المطور (تتطلب صلاحيات)
         this.adminRegistry.set('توقف', this.handlePause.bind(this));
         this.adminRegistry.set('كمل', this.handleResume.bind(this));
         this.adminRegistry.set('شغل', this.handleStart.bind(this));
@@ -58,12 +56,10 @@ class SecretaryCommandSystem {
     }
 
     async handleManualCommand(text, jid, isOwner, pushName) {
-        // تحديث نشاط المستخدم
         this.updateUserActivity(jid, pushName);
         
         const cleanText = text.trim().toLowerCase();
         
-        // كلمات السر الخاصة
         if (cleanText === 'نجم1997' || cleanText === 'راشد123') {
             return this.generateNaturalControlPanel(pushName, isOwner);
         }
@@ -72,14 +68,12 @@ class SecretaryCommandSystem {
             return this.activatePrivateMode(pushName);
         }
         
-        // البحث عن أمر مطابق
         for (const [command, handler] of this.commandRegistry) {
             if (cleanText === command || cleanText.includes(command)) {
                 return await handler(jid, pushName, text);
             }
         }
         
-        // أوامر المطور
         if (isOwner) {
             for (const [command, handler] of this.adminRegistry) {
                 if (cleanText === command || cleanText.includes(command)) {
@@ -88,7 +82,7 @@ class SecretaryCommandSystem {
             }
         }
         
-        return null; // لا يوجد أمر، يتم التعامل معه كحديث عادي
+        return null;
     }
 
     generateNaturalControlPanel(pushName, isOwner) {
@@ -122,7 +116,8 @@ class SecretaryCommandSystem {
         panel += `• *نكته* - قل لي نكته\n`;
         panel += `• *حكمه* - اعطني حكمه\n`;
         panel += `• *وش تقدر* - اعرف قدراتي\n`;
-        panel += `• *شلونك* - اسأل عن حالي\n\n`;
+        panel += `• *شلونك* - اسأل عن حالي\n`;
+        panel += `• *حاله* - حالة البوت الحالية\n\n`;
         
         if (isOwner) {
             panel += `*⚙️ إعدادات المطور:*\n`;
@@ -160,7 +155,8 @@ class SecretaryCommandSystem {
             'محادثة': 'تكلم معاي عادي وبرد عليك',
             'تنظيم': 'ساعدك في المهام والمواعيد',
             'خدمات': 'أوقات الصلاة، أذكار، اقتراحات',
-            'ترفيه': 'نكت، حكم، قراءة حظ'
+            'ترفيه': 'نكت، حكم، قراءة حظ',
+            'حالة': 'عرض حالة البوت الحالية'
         };
         
         let response = `*🆘 كيف أستخدم السكرتير:*\n\n`;
@@ -171,6 +167,7 @@ class SecretaryCommandSystem {
         
         response += `\n*مثال:*\n`;
         response += `- "وش تسوي" ← أخبرك عن حالي\n`;
+        response += `- "حاله" ← حالة البوت الحالية\n`;
         response += `- "ضبط لي تذكير" ← أساعدك بالتذكير\n`;
         response += `- "عطيني نكته" ← أضحكك شوي\n\n`;
         response += `*تلميح:*\n`;
@@ -188,7 +185,8 @@ class SecretaryCommandSystem {
             'تقديم اقتراحات مناسبة',
             'إعطاء نكت وحكم مناسبة',
             'قراءة الحظ بطريقة مرحة',
-            'تقديم النصائح المفيدة'
+            'تقديم النصائح المفيدة',
+            'عرض حالة البوت الحالية'
         ];
         
         let response = `*🛠️ الأشياء اللي أقدر أسويها:*\n\n`;
@@ -273,7 +271,6 @@ class SecretaryCommandSystem {
         
         response += `\n*الصلاة القادمة:* `;
         
-        // تحديد الصلاة القادمة (مثال مبسط)
         const currentHour = now.getHours();
         if (currentHour < 4) response += `الفجر 🌅`;
         else if (currentHour < 12) response += `الظهر ☀️`;
@@ -454,7 +451,22 @@ class SecretaryCommandSystem {
              + `_ربنا يزيدك حكمة وعقل_ 🧠✨`;
     }
 
-    // أوامر المطور
+    async handleBotStatus(jid, pushName) {
+        const { botStatus } = require('../../index');
+        
+        const statusEmoji = botStatus.isPaused ? '⏸️' : (botStatus.isActive ? '✅' : '❌');
+        const statusText = botStatus.isPaused ? 'متوقف مؤقتاً' : (botStatus.isActive ? 'نشط' : 'متوقف');
+        
+        return `*🤖 حالة البوت الحالية:*\n\n`
+             + `${statusEmoji} *الحالة:* ${statusText}\n`
+             + `💬 *الرسالة:* ${botStatus.statusMessage}\n`
+             + `🔄 *الرد التلقائي:* ${botStatus.autoReply ? 'نشط ✅' : 'معطل ❌'}\n`
+             + `🔧 *الخاص:* ${botStatus.privateMode ? 'مفعل ✅' : 'معطل ❌'}\n`
+             + `⚙️ *الصيانة:* ${botStatus.maintenance ? 'جارية 🛠️' : 'لايوجد ✅'}\n`
+             + `⏰ *آخر إعادة تشغيل:* ${botStatus.lastRestart.toLocaleTimeString('ar-SA')}\n\n`
+             + `_البوت يعمل بشكل ${botStatus.isActive ? 'طبيعي' : 'محدود'}_`;
+    }
+
     async handlePause(jid, pushName) {
         return `*⏸️ فهمت...*\n\n`
              + `راح أوقف الرد التلقائي خلاص.\n`
@@ -677,15 +689,13 @@ class SecretaryCommandSystem {
     }
 }
 
-// إنشاء نسخة واحدة من النظام
 const secretaryCommands = new SecretaryCommandSystem();
 
-// دالة رئيسية للتوافق
 function handleManualCommand(text, jid, isOwner, pushName) {
     return secretaryCommands.handleManualCommand(text, jid, isOwner, pushName);
 }
 
 module.exports = { 
     handleManualCommand,
-    secretaryCommands  // للاستخدام المتقدم
+    secretaryCommands
 };
