@@ -11,7 +11,7 @@ const path = require("path");
 const { getAIResponse } = require("./core/ai");
 const { handleManualCommand } = require("./core/commands");
 const { isSpamming } = require("./core/antiSpam");
-const gatekeeper = require("./gatekeeper"); // إضافة ملف الحارس هنا
+const gatekeeper = require("./gatekeeper"); // [ديب سيك] استدعاء ملف الحارس
 
 const app = express();
 const port = process.env.PORT || 10000;
@@ -152,6 +152,13 @@ async function startBot() {
                 isConnected = true; 
                 qrCodeImage = "DONE"; 
                 logger.log('SUCCESS', 'Bot connected successfully!');
+                
+                // 🛡️ [تعديل ديب سيك] تهيئة الحارس فور الاتصال
+                const ownerJid = process.env.OWNER_NUMBER ? process.env.OWNER_NUMBER + '@s.whatsapp.net' : null;
+                if (ownerJid) {
+                    gatekeeper.initialize(sock, ownerJid);
+                }
+                
                 await sendStartupNotification();
             }
             if (connection === 'close') {
@@ -216,7 +223,7 @@ async function processIncomingMessage(msg) {
     const isOwner = jid.includes(process.env.OWNER_NUMBER || "966554526287");
     
     try {
-        // --- تصحيح الخطأ هنا: إضافة await ---
+        // فحص الأوامر اليدوية
         const manualResponse = await handleManualCommand(text, jid, isOwner, pushName);
         
         if (manualResponse) {
@@ -225,18 +232,18 @@ async function processIncomingMessage(msg) {
             return;
         }
 
-        // 🛡️ --- نظام الحارس (Gatekeeper System) --- 🛡️
-        const ownerJid = process.env.OWNER_NUMBER + '@s.whatsapp.net';
+        // 🛡️ [نظام ديب سيك المطور] --- الحارس --- 🛡️
         
-        // إذا كنت أنت المالك ورديت بـ نعم/لا للرد على شخص
-        if (isOwner && gatekeeper.handleOwnerDecision(text)) return;
+        // 1. إذا كان المرسل هو المالك، نفحص إذا كان يرد بـ نعم/لا
+        if (isOwner) {
+            if (gatekeeper.handleOwnerDecision(text)) return; 
+        }
 
-        // تشغيل منطق الحارس (طلب الإذن + الانتظار 35 ثانية)
-        const gateResponse = await gatekeeper.handleEverything(jid, pushName, text, sock, ownerJid);
+        // 2. فحص الإذن والانتظار (لاحظ: لم نعد نمرر sock هنا لأن الملف المطور يحفظه)
+        const gateResponse = await gatekeeper.handleEverything(jid, pushName, text);
         
-        // إذا المالك منع الرد أو كنا في حالة انتظار الإذن، نوقف المعالجة هنا
         if (gateResponse.status === 'STOP' || gateResponse.status === 'WAITING') return;
-        // ---------------------------------------
+        // -------------------------------------------
         
         if (botStatus.maintenance && !isOwner) return;
         if (!botStatus.autoReply && !isOwner) return;
@@ -246,7 +253,7 @@ async function processIncomingMessage(msg) {
         const aiResponse = await getAIResponse(jid, text, pushName);
         
         if (aiResponse) {
-            await delay(1000 + (aiResponse.length * 10)); // تأخير بسيط لمحاكاة البشر
+            await delay(1000 + (aiResponse.length * 10)); 
             await sock.sendMessage(jid, { text: aiResponse });
             if (db) updateStatistics(jid, pushName, text, aiResponse);
         }
