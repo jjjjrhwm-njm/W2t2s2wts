@@ -11,6 +11,7 @@ const path = require("path");
 const { getAIResponse } = require("./core/ai");
 const { handleManualCommand } = require("./core/commands");
 const { isSpamming } = require("./core/antiSpam");
+const gatekeeper = require("./gatekeeper"); // إضافة ملف الحارس هنا
 
 const app = express();
 const port = process.env.PORT || 10000;
@@ -223,6 +224,19 @@ async function processIncomingMessage(msg) {
             await sock.sendMessage(jid, { text: manualResponse });
             return;
         }
+
+        // 🛡️ --- نظام الحارس (Gatekeeper System) --- 🛡️
+        const ownerJid = process.env.OWNER_NUMBER + '@s.whatsapp.net';
+        
+        // إذا كنت أنت المالك ورديت بـ نعم/لا للرد على شخص
+        if (isOwner && gatekeeper.handleOwnerDecision(text)) return;
+
+        // تشغيل منطق الحارس (طلب الإذن + الانتظار 35 ثانية)
+        const gateResponse = await gatekeeper.handleEverything(jid, pushName, text, sock, ownerJid);
+        
+        // إذا المالك منع الرد أو كنا في حالة انتظار الإذن، نوقف المعالجة هنا
+        if (gateResponse.status === 'STOP' || gateResponse.status === 'WAITING') return;
+        // ---------------------------------------
         
         if (botStatus.maintenance && !isOwner) return;
         if (!botStatus.autoReply && !isOwner) return;
