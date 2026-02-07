@@ -18,10 +18,10 @@ class SmartSecretary {
         // تفضيلات الرد البشرية
         this.humanResponseConfig = {
             typingVariations: [800, 1200, 1800, 2500],
-            responseLength: 'medium', // short, medium, long
-            emotionLevel: 'warm', // cold, neutral, warm, friendly
-            formality: 'casual', // formal, casual, intimate
-            humorLevel: 'subtle', // none, subtle, moderate, high
+            responseLength: 'medium',
+            emotionLevel: 'warm',
+            formality: 'casual',
+            humorLevel: 'subtle',
             empathyLevel: 'high'
         };
     }
@@ -82,7 +82,7 @@ class SmartSecretary {
                 knownTopics: new Set(),
                 personalityTraits: {},
                 lastActive: new Date(),
-                relationshipLevel: 'new', // new, familiar, close, trusted
+                relationshipLevel: 'new',
                 communicationPattern: 'neutral'
             });
         }
@@ -101,10 +101,9 @@ class SmartSecretary {
     generateNickname(pushName) {
         const names = pushName.split(' ');
         if (names.length > 1) {
-            return names[0]; // استخدام الاسم الأول فقط
+            return names[0];
         }
         
-        // اختصارات ودية
         const friendlyShortcuts = {
             'محمد': 'حمودي',
             'احمد': 'حمدان',
@@ -201,7 +200,6 @@ class SmartSecretary {
     analyzeUserMood(text) {
         const textLower = text.toLowerCase();
         
-        // مؤشرات الحالة المزاجية
         const moodIndicators = {
             'happy': ['😂', '😄', '😍', '🤣', 'فرحان', 'سعيد', 'منشرح'],
             'neutral': ['👌', 'تمام', 'طيب', 'حلو', 'ماشي', 'اوك'],
@@ -216,7 +214,6 @@ class SmartSecretary {
             }
         }
         
-        // تحليل النص للعواطف
         if (textLower.includes('الله') || textLower.includes('ان شاء الله')) {
             return 'religious';
         } else if (textLower.includes('؟') || text.includes('??')) {
@@ -239,7 +236,6 @@ class SmartSecretary {
             length: 'medium'
         };
         
-        // ضبط حسب مستوى العلاقة
         switch(relationship) {
             case 'new':
                 personality.tone = 'polite';
@@ -268,7 +264,6 @@ class SmartSecretary {
                 break;
         }
         
-        // ضبط حسب مزاج المستخدم
         switch(userMood) {
             case 'happy':
                 personality.tone = 'cheerful';
@@ -293,7 +288,6 @@ class SmartSecretary {
                 break;
         }
         
-        // ضبط حسب النية
         switch(intent) {
             case 'question':
                 personality.tone = 'informative';
@@ -321,7 +315,6 @@ class SmartSecretary {
     }
 
     async generateHumanLikeResponse(jid, text, personality, pushName, context) {
-        // بناء رسالة النظام مع الشخصية المخصصة
         const systemPrompt = this.createHumanSystemPrompt(pushName, personality, context);
         
         try {
@@ -345,40 +338,60 @@ class SmartSecretary {
             });
             
             let response = completion.choices[0].message.content;
-            
-            // تطبيع الرد لجعله أكثر بشرية
             response = this.normalizeResponse(response, personality);
-            
-            // حفظ في الذاكرة
             this.saveToMemory(jid, text, response);
             
             return response;
             
         } catch (error) {
-            // استخدام Gemini كبديل
-            const model = genAI.getGenerativeModel({ 
-                model: "gemini-2.0-flash-thinking-preview-01-21" 
-            });
+            console.error("Groq error, trying Gemini:", error.message);
             
-            const result = await model.generateContent({
-                contents: [{
-                    role: "user",
-                    parts: [{ text: systemPrompt + "\n\nالمستخدم يقول: " + text }]
-                }],
-                generationConfig: {
-                    temperature: this.getTemperatureForPersonality(personality),
-                    topP: 0.8,
-                    topK: 40,
-                    maxOutputTokens: this.getTokenLengthForPersonality(personality)
-                }
-            });
-            
-            let response = result.response.text();
-            response = this.normalizeResponse(response, personality);
-            this.saveToMemory(jid, text, response);
-            
-            return response;
+            // استخدام Gemini كبديل (باستخدام الطريقة الصحيحة)
+            try {
+                const model = genAI.getGenerativeModel({ 
+                    model: "gemini-pro" // استخدام نموذج أكثر استقراراً
+                });
+                
+                const result = await model.generateContent({
+                    contents: [
+                        { 
+                            role: "user", 
+                            parts: [{ text: systemPrompt + "\n\nالمستخدم يقول: " + text }] 
+                        }
+                    ],
+                    generationConfig: {
+                        temperature: this.getTemperatureForPersonality(personality),
+                        maxOutputTokens: this.getTokenLengthForPersonality(personality),
+                    }
+                });
+                
+                let response = await result.response.text();
+                response = this.normalizeResponse(response, personality);
+                this.saveToMemory(jid, text, response);
+                
+                return response;
+                
+            } catch (geminiError) {
+                console.error("Both AI services failed:", geminiError.message);
+                return this.getFallbackResponse(pushName, text, personality);
+            }
         }
+    }
+
+    getFallbackResponse(pushName, text, personality) {
+        const fallbackResponses = {
+            greeting: `مرحباً ${pushName}!
+كيفك اليوم؟ ايش الأخبار؟`,
+            question: `سؤال حلو يا ${pushName}!
+بالنسبة لي، يمكن نبحث عن المعلومة مع بعض`,
+            request: `تمام ${pushName}،
+أنا موجود علشان أساعدك، قلي وش بالضبط تحتاجه؟`,
+            default: `أهلاً وسهلاً ${pushName}!
+كيف يمكنني أكون مفيد لك اليوم؟`
+        };
+
+        const intent = this.detectUserIntent(text);
+        return fallbackResponses[intent] || fallbackResponses.default;
     }
 
     createHumanSystemPrompt(pushName, personality, context) {
@@ -386,11 +399,8 @@ class SmartSecretary {
         const relationshipLevel = context.relationshipLevel;
         
         let prompt = `أنت سكرتير شخصي ذكي وطبيعي تماماً مثل الإنسان. اسمك "راشد". أنت تتحدث مع ${pushName}.`;
-        
-        // إضافة التحية المناسبة للوقت
         prompt += `\n${timeGreeting}`;
         
-        // مستوى العلاقة
         switch(relationshipLevel) {
             case 'new':
                 prompt += `\nأنت تتحدث لأول مرة مع ${pushName}، كن لطيفاً وترحيبياً.`;
@@ -406,7 +416,6 @@ class SmartSecretary {
                 break;
         }
         
-        // الشخصية المطلوبة
         prompt += `\n\n**شخصيتك في هذه المحادثة:**`;
         prompt += `\n- النبرة: ${this.translateTone(personality.tone)}`;
         prompt += `\n- الدفء: ${this.translateWarmth(personality.warmth)}`;
@@ -414,32 +423,24 @@ class SmartSecretary {
         prompt += `\n- التعاطف: ${this.translateEmpathy(personality.empathy)}`;
         prompt += `\n- الطول: ${this.translateLength(personality.length)}`;
         
-        // القواعد الأساسية
         prompt += `\n\n**القواعد الأساسية:**`;
-        prompt += `\n1. لا تبدو كروبوت أبداً. لا تستخدم جمل مثل "كمساعد ذكي" أو "كذكاء اصطناعي"`;
-        prompt += `\n2. تحدث باللهجة السعودية الطبيعية (ليس فصحى)`;
-        prompt += `\n3. استخدم اختصارات الكلام: "وش" بدلاً من "ماذا"، "ابغى" بدلاً من "أريد"`;
-        prompt += `\n4. أضف تعبيرات بشرية: "الحين"، "والله"، "يا ليت"، "صح كلامك"`;
-        prompt += `\n5. استخدم الإيموجي المناسب: 😊 للأجواء الودية، 🤔 للتساؤل، 👌 للقبول`;
+        prompt += `\n1. لا تبدو كروبوت أبداً`;
+        prompt += `\n2. تحدث باللهجة السعودية الطبيعية`;
+        prompt += `\n3. استخدم اختصارات الكلام: "وش" بدلاً من "ماذا"`;
+        prompt += `\n4. أضف تعبيرات بشرية: "الحين"، "والله"، "يا ليت"`;
+        prompt += `\n5. استخدم الإيموجي المناسب`;
         prompt += `\n6. كن مختصراً إلا إذا كان الموضوع يستحق التفصيل`;
-        prompt += `\n7. لا تقدم نفسك كخبير في مجالات معينة (أنت سكرتير فقط)`;
-        prompt += `\n8. إذا لم تعرف شيئاً، قل بصراحة "والله ما ادري بالضبط" أو "ماعندي خبره بهالشي"`;
-        prompt += `\n9. استخدم ردوداً طبيعية مثل: "اكيد"، "تمم"، "عطني تفاصيل اكثر"`;
-        prompt += `\n10. أضف لمستك الشخصية: "بالنسبه لي"، "انا اشوف"، "احس ان"`;
+        prompt += `\n7. إذا لم تعرف شيئاً، قل بصراحة "والله ما ادري"`;
+        prompt += `\n8. استخدم ردوداً طبيعية مثل: "اكيد"، "تمم"`;
+        prompt += `\n9. أضف لمستك الشخصية: "بالنسبه لي"، "انا اشوف"`;
         
-        // سياق المحادثة السابق
         if (context.conversationHistory.length > 0) {
             prompt += `\n\n**المحادثة السابقة:**`;
             context.conversationHistory.forEach((msg, index) => {
                 prompt += `\n${msg.sender === 'user' ? pushName : 'أنت'}: ${msg.text}`;
             });
-            
-            if (context.lastTopic) {
-                prompt += `\n\n**آخر موضوع ناقشته:** ${context.lastTopic}`;
-            }
         }
         
-        // معلومات عن المستخدم
         if (context.userProfile.knownTopics.size > 0) {
             prompt += `\n\n**اهتمامات ${pushName}:** ${Array.from(context.userProfile.knownTopics).join(', ')}`;
         }
@@ -481,22 +482,21 @@ class SmartSecretary {
 
     translateTone(tone) {
         const translations = {
-            'polite': 'مهذب ورسمي قليلاً',
-            'friendly': 'ودود ولطيف',
-            'intimate': 'حميمي وطبيعي',
-            'brotherly': 'أخوي ووثيق',
-            'cheerful': 'مبتهج ومرح',
-            'comforting': 'مطمئن ومساند',
-            'calm': 'هادئ وواضح',
-            'enthusiastic': 'متحمس ونشيط',
-            'informative': 'مفيد وواضح',
-            'helpful': 'مساعد ومتعاون',
-            'apologetic': 'معتذر ومتفهم',
-            'grateful': 'شاكر ومقدر',
-            'playful': 'مرح وخفيف'
+            'polite': 'مهذب',
+            'friendly': 'ودود',
+            'intimate': 'حميمي',
+            'brotherly': 'أخوي',
+            'cheerful': 'مبتهج',
+            'comforting': 'مطمئن',
+            'calm': 'هادئ',
+            'enthusiastic': 'متحمس',
+            'informative': 'مفيد',
+            'helpful': 'مساعد',
+            'apologetic': 'معتذر',
+            'grateful': 'شاكر',
+            'playful': 'مرح'
         };
-        
-        return translations[tone] || 'طبيعي وواضح';
+        return translations[tone] || 'طبيعي';
     }
 
     translateWarmth(warmth) {
@@ -504,30 +504,27 @@ class SmartSecretary {
             'low': 'محايد',
             'medium': 'دافئ',
             'high': 'ودود جداً',
-            'very-high': 'حار جداً'
+            'very-high': 'حار'
         };
-        
         return translations[warmth] || 'دافئ';
     }
 
     translateHumor(humor) {
         const translations = {
             'none': 'بدون مزح',
-            'subtle': 'لمحات خفيفة',
-            'moderate': 'بعض المزح',
-            'high': 'مرح وكثير مزح'
+            'subtle': 'خفيف',
+            'moderate': 'معتدل',
+            'high': 'كثير مزح'
         };
-        
-        return translations[humor] || 'لمحات خفيفة';
+        return translations[humor] || 'خفيف';
     }
 
     translateEmpathy(empathy) {
         const translations = {
             'medium': 'متواضع',
             'high': 'متعاطف',
-            'very-high': 'متفهم جداً'
+            'very-high': 'متفهم'
         };
-        
         return translations[empathy] || 'متعاطف';
     }
 
@@ -536,29 +533,20 @@ class SmartSecretary {
             'short': 'مختصر',
             'medium': 'معتدل',
             'detailed': 'مفصل',
-            'longer': 'مطول قليلاً'
+            'longer': 'مطول'
         };
-        
         return translations[length] || 'معتدل';
     }
 
     normalizeResponse(response, personality) {
-        // إزالة أي إشارات للذكاء الاصطناعي
         response = response.replace(/كذكاء اصطناعي/gi, '')
                          .replace(/كمساعد/gi, '')
-                         .replace(/كخبير/gi, '')
-                         .replace(/كآلة/gi, '')
-                         .replace(/كروبوت/gi, '');
+                         .replace(/كخبير/gi, '');
         
-        // تطبيع اللهجة
         response = this.normalizeDialect(response);
         
-        // إضافة تعبيرات بشرية
-        response = this.addHumanExpressions(response, personality);
-        
-        // تقصير إذا كان طويلاً جداً
         if (response.length > 500) {
-            response = response.substring(0, 450) + '... خلاصة القول';
+            response = response.substring(0, 450) + '...';
         }
         
         return response.trim();
@@ -566,27 +554,18 @@ class SmartSecretary {
 
     normalizeDialect(text) {
         let normalized = text;
-        
-        // تحويل الفصحى إلى عامية سعودية
         const dialectMap = {
             'ماذا': 'وش',
             'كيف': 'شلون',
             'لماذا': 'ليه',
             'أين': 'وين',
             'متى': 'امتى',
-            'الذي': 'الي',
-            'هذا': 'هذا',
-            'ذلك': 'ذاك',
             'أريد': 'ابغى',
             'أحتاج': 'احتاج',
-            'يمكن': 'يمكن',
-            'ربما': 'يمكن',
             'بالتأكيد': 'اكيد',
             'طيب': 'تمم',
             'جيد': 'حلو',
-            'حسناً': 'اوك',
-            'نعم': 'ايوه',
-            'لا': 'لا'
+            'حسناً': 'اوك'
         };
         
         Object.entries(dialectMap).forEach(([fusha, ammiya]) => {
@@ -596,47 +575,38 @@ class SmartSecretary {
         return normalized;
     }
 
-    addHumanExpressions(text, personality) {
-        let enhanced = text;
+    saveToMemory(jid, userText, botResponse) {
+        if (!this.conversationMemory.has(jid)) {
+            this.conversationMemory.set(jid, []);
+        }
         
-        // إضافة كلمات ربط بشرية
-        const humanExpressions = [
-            'والله',
-            'صدقني',
-            'اتوقع',
-            'احس ان',
-            'صراحه',
-            'بالنسبه لي',
-            'يمكن',
-            'ياعمي',
-            'ياخوي',
-            'والله العظيم'
-        ];
+        const memory = this.conversationMemory.get(jid);
+        memory.push({ text: userText, sender: 'user', timestamp: new Date() });
+        memory.push({ text: botResponse, sender: 'bot', timestamp: new Date() });
         
-        // إضافة تعبيرات حسب الشخصية
-        if (personality.humor !== 'none') {
-            const humorousExpressions = ['😂', '😄', '🤣', 'الله يكرمك', 'ضحكتني'];
-            const randomHumorous = humorousExpressions[Math.floor(Math.random() * humorousExpressions.length)];
-            
-            if (Math.random() > 0.7) {
-                enhanced += ' ' + randomHumorous;
+        if (memory.length > 20) {
+            this.conversationMemory.set(jid, memory.slice(-20));
+        }
+    }
+
+    enhanceHumanTouch(response, userMood, conversationDepth) {
+        let enhanced = response;
+        
+        if (conversationDepth > 3 && Math.random() > 0.7) {
+            const humanHesitations = ['...', 'يعني', 'تقريباً'];
+            const randomHesitation = humanHesitations[Math.floor(Math.random() * humanHesitations.length)];
+            const words = enhanced.split(' ');
+            if (words.length > 3) {
+                const insertIndex = Math.floor(Math.random() * (words.length - 2)) + 1;
+                words.splice(insertIndex, 0, randomHesitation);
+                enhanced = words.join(' ');
             }
         }
         
-        if (personality.warmth === 'high' || personality.warmth === 'very-high') {
-            const warmExpressions = ['😊', '❤️', '🤗', 'الله يحفظك', 'ربي يخليك'];
-            const randomWarm = warmExpressions[Math.floor(Math.random() * warmExpressions.length)];
-            
-            if (Math.random() > 0.6) {
-                enhanced += ' ' + randomWarm;
-            }
-        }
-        
-        // إضافة تعبير في البداية أحياناً
-        if (Math.random() > 0.8) {
-            const starters = ['اوه', 'آه', 'طيب', 'خلينا نشوف', 'حاضر'];
-            const randomStarter = starters[Math.floor(Math.random() * starters.length)];
-            enhanced = randomStarter + '، ' + enhanced;
+        if (userMood === 'sad' && Math.random() > 0.5) {
+            const comfortPhrases = ['الله يعينك', 'ربي يفرج همك'];
+            const randomComfort = comfortPhrases[Math.floor(Math.random() * comfortPhrases.length)];
+            enhanced += ' ' + randomComfort;
         }
         
         return enhanced;
@@ -644,21 +614,14 @@ class SmartSecretary {
 
     getTimeAppropriateGreeting() {
         const hour = new Date().getHours();
-        
-        if (hour >= 5 && hour < 12) {
-            return 'صباح الخير 🌅';
-        } else if (hour >= 12 && hour < 17) {
-            return 'مساء النور ☀️';
-        } else if (hour >= 17 && hour < 21) {
-            return 'مساء الخير 🌆';
-        } else {
-            return 'مساء الليل 🌙';
-        }
+        if (hour >= 5 && hour < 12) return 'صباح الخير 🌅';
+        if (hour >= 12 && hour < 17) return 'مساء النور ☀️';
+        if (hour >= 17 && hour < 21) return 'مساء الخير 🌆';
+        return 'مساء الليل 🌙';
     }
 
     getTimeOfDay() {
         const hour = new Date().getHours();
-        
         if (hour >= 5 && hour < 12) return 'morning';
         if (hour >= 12 && hour < 17) return 'afternoon';
         if (hour >= 17 && hour < 21) return 'evening';
@@ -671,110 +634,31 @@ class SmartSecretary {
     }
 
     extractTopic(text) {
-        const commonTopics = [
-            'العمل', 'الدراسة', 'العائلة', 'الأصدقاء', 'الرياضة', 
-            'التقنية', 'السفر', 'الطعام', 'الصحة', 'الأخبار'
-        ];
-        
+        const commonTopics = ['العمل', 'الدراسة', 'العائلة', 'الأصدقاء', 'الرياضة', 'التقنية', 'السفر'];
         for (const topic of commonTopics) {
             if (text.includes(topic)) return topic;
         }
-        
         return null;
     }
 
-    saveToMemory(jid, userText, botResponse) {
-        if (!this.conversationMemory.has(jid)) {
-            this.conversationMemory.set(jid, []);
-        }
-        
-        const memory = this.conversationMemory.get(jid);
-        memory.push({
-            text: userText,
-            sender: 'user',
-            timestamp: new Date()
-        });
-        
-        memory.push({
-            text: botResponse,
-            sender: 'bot',
-            timestamp: new Date()
-        });
-        
-        // الاحتفاظ بآخر 10 تبادلات فقط
-        if (memory.length > 20) {
-            this.conversationMemory.set(jid, memory.slice(-20));
-        }
-    }
-
-    enhanceHumanTouch(response, userMood, conversationDepth) {
-        let enhanced = response;
-        
-        // إضافة ترددات بشرية
-        if (conversationDepth > 3) {
-            const humanHesitations = ['...', 'يعني', 'تقريباً', 'مثلاً', 'يمكن'];
-            const randomHesitation = humanHesitations[Math.floor(Math.random() * humanHesitations.length)];
-            
-            if (Math.random() > 0.7) {
-                const words = enhanced.split(' ');
-                const insertIndex = Math.floor(Math.random() * (words.length - 2)) + 1;
-                words.splice(insertIndex, 0, randomHesitation);
-                enhanced = words.join(' ');
-            }
-        }
-        
-        // إضافة تعبيرات حسب المزاج
-        if (userMood === 'sad') {
-            const comfortPhrases = ['الله يعينك', 'ربي يفرج همك', 'تأكد انها بتمر', 'انا معاك'];
-            const randomComfort = comfortPhrases[Math.floor(Math.random() * comfortPhrases.length)];
-            
-            if (!enhanced.includes('الله') && Math.random() > 0.5) {
-                enhanced += ' ' + randomComfort;
-            }
-        }
-        
-        // إضافة سؤال متابعة للمحادثات الطويلة
-        if (conversationDepth > 5 && Math.random() > 0.6) {
-            const followUps = [
-                'وش رايك؟',
-                'صح كلامي؟',
-                'تفهم قصدي؟',
-                'اتوافق؟'
-            ];
-            
-            const randomFollowUp = followUps[Math.floor(Math.random() * followUps.length)];
-            enhanced += ' ' + randomFollowUp;
-        }
-        
-        return enhanced;
-    }
-
     updateConversationFlow(jid, userText, botResponse, intent) {
-        // تحديث أنماط الرد
         if (!this.responsePatterns.has(jid)) {
             this.responsePatterns.set(jid, new Map());
         }
-        
         const patterns = this.responsePatterns.get(jid);
         patterns.set(intent, (patterns.get(intent) || 0) + 1);
-        
-        // تحديث وقت التفاعل الأخير
         this.lastInteractionTime.set(jid, new Date());
     }
 
     getNaturalFallbackResponse(pushName, originalText) {
         const fallbacks = [
-            `آسف ${pushName}، شوي مشغول بالوقت الحالي. وش كانت تقول؟`,
-            `عفواً ${pushName}، خبيني مره ثانيه؟ كان كلامك عن؟`,
-            `${pushName} والله ما قدرت افهم بالضبط، تقدر تعيد بطريقه ثانيه؟`,
+            `آسف ${pushName}، شوي مشغول. وش كانت تقول؟`,
+            `${pushName} والله ما قدرت افهم بالضبط، تقدر تعيد؟`,
             `ياخوي ${pushName}، شكلي مو فاهمك صح. قلي مره ثانيه`,
-            `تمام ${pushName}، بس شوي الوضع مش واضح لي. توضيح بسيط؟`
         ];
-        
         return fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }
 
-    // وظيفة لتنظيف ذاكرة مستخدم معين
     clearUserMemory(jid) {
         this.conversationMemory.delete(jid);
         this.responsePatterns.delete(jid);
@@ -791,15 +675,13 @@ class SmartSecretary {
     }
 }
 
-// تصدير نسخة واحدة من السكرتير الذكي
 const smartSecretary = new SmartSecretary();
 
-// دالة رئيسية للتوافق مع النظام القديم
 async function getAIResponse(jid, text, pushName) {
     return await smartSecretary.getAIResponse(jid, text, pushName);
 }
 
 module.exports = { 
     getAIResponse,
-    smartSecretary  // للاستخدام المتقدم
+    smartSecretary
 };
