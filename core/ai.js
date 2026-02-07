@@ -14,6 +14,7 @@ class SmartSecretary {
         this.scheduledTasks = new Map();
         this.responsePatterns = new Map();
         this.lastInteractionTime = new Map();
+        this.responseVariations = new Map();
         
         // تفضيلات الرد البشرية
         this.humanResponseConfig = {
@@ -24,6 +25,59 @@ class SmartSecretary {
             humorLevel: 'none',
             empathyLevel: 'medium'
         };
+        
+        this.initializeResponseVariations();
+    }
+    
+    initializeResponseVariations() {
+        // بدائل لكل نوع من الردود لمنع التكرار
+        this.responseVariations.set('greeting', [
+            "أهلاً فيك! وش الجديد؟",
+            "هلا والله! كيف الحال؟",
+            "يا هلا! وش الأخبار؟",
+            "مرحباً! وش في بالك؟",
+            "أهلاً وسهلاً! وش مسوي؟"
+        ]);
+        
+        this.responseVariations.set('rashaad_busy', [
+            "الراشد مشغول في شغله الحين",
+            "الله يخليه، الراشد مشغول",
+            "الراشد مو متاح حالياً",
+            "الراشد في دوامه الآن",
+            "الراشد مشغول بس أنا موجود"
+        ]);
+        
+        this.responseVariations.set('will_deliver', [
+            "حاضر! راح أوصله طلبك",
+            "تم، راح أوصل الرسالة",
+            "أكيد! راح أوصله",
+            "راح أعلم الراشد",
+            "توكل، راح أوصل له"
+        ]);
+        
+        this.responseVariations.set('smalltalk', [
+            "والله ماشي الحال، وانت؟",
+            "الحمدلله بخير، وش أخبارك؟",
+            "تمام الحمدلله، وش الجديد؟",
+            "مبسوط لأنك كلمتني! وش عندك؟",
+            "ربي يخليك، وانت شلونك؟"
+        ]);
+        
+        this.responseVariations.set('question', [
+            "شكلك تبي تعرف شي!",
+            "سؤال حلو!",
+            "تبي تعرف عن الراشد؟",
+            "وش تبغى تعرف؟",
+            "عطني سؤالك!"
+        ]);
+        
+        this.responseVariations.set('checking', [
+            "موجود ومسؤول عنك!",
+            "جاهز للخدمة!",
+            "أنا هنا!",
+            "بالخدمة!",
+            "جاهز ومستعد!"
+        ]);
     }
 
     async getAIResponse(jid, text, pushName) {
@@ -57,7 +111,8 @@ class SmartSecretary {
             const enhancedResponse = this.enhanceHumanTouch(
                 humanResponse, 
                 userMood, 
-                contextAnalysis.conversationDepth
+                contextAnalysis.conversationDepth,
+                userIntent
             );
             
             // تحديث ذاكرة المحادثة
@@ -361,17 +416,17 @@ class SmartSecretary {
 
     getFallbackResponse(pushName, text, personality) {
         const intent = this.detectUserIntent(text);
+        const nickname = this.generateNickname(pushName);
         
         const fallbacks = {
-            'greeting': `أهلاً فيك ${pushName}! كيف الحال؟`,
-            'question': `شكلك تبغى تعرف شي عن الراشد! هو مشغول حالياً`,
-            'request': `حاضر يا ${pushName}، راح أبلغ الراشد عن طلبك`,
-            'important': `أكيد مهم! راح أقول للراشد إنك تبي تشوفه`,
-            'business': `تم، راح أعلم الراشد بالموضوع`,
-            'checking': `الراشد مشغول في شغله الحين`,
-            'smalltalk': `هلا والله ${pushName}!
-الراشد مشغول بس أنا موجود`,
-            'default': `يا هلا ${pushName}! الراشد مشغول حالياً`
+            'greeting': this.getVariation('greeting').replace('!', ` ${nickname}!`),
+            'question': `شكلك تبي تعرف شي عن الراشد! هو ${this.getVariation('rashaad_busy')}`,
+            'request': `${this.getVariation('will_deliver').replace('طلبك', `طلبك يا ${nickname}`)}`,
+            'important': `أكيد مهم! ${this.getVariation('will_deliver')}`,
+            'business': `تم، ${this.getVariation('will_deliver').replace('أوصله', 'أعلم الراشد')}`,
+            'checking': this.getVariation('checking'),
+            'smalltalk': `هلا والله ${nickname}! ${this.getVariation('rashaad_busy')}`,
+            'default': `يا هلا ${nickname}! ${this.getVariation('rashaad_busy')}`
         };
         
         return fallbacks[intent] || fallbacks.default;
@@ -380,76 +435,66 @@ class SmartSecretary {
     createHumanSystemPrompt(pushName, personality, context, userText) {
         const timeGreeting = this.getTimeAppropriateGreeting();
         const intent = this.detectUserIntent(userText);
+        const nickname = this.generateNickname(pushName);
         
-        let prompt = `أنت مساعد الراشد. مهمتك تتعامل مع الناس لما الراشد مشغول.`;
-        prompt += `\n\n**أنت إنسان طبيعي:**`;
-        prompt += `\n- تتكلم مثل البشر تماماً`;
-        prompt += `\n- عندك ذكاء ودعابة خفيفة`;
-        prompt += `\n- ترد ردود قصيرة وبشرية`;
-        prompt += `\n- مرّح ومحبب في التعامل`;
-        prompt += `\n- تفهم وتجاوب بذكاء`;
+        let prompt = `أنت مساعد الراشد. الناس بتكلمك لما الراشد مشغول.\n\n`;
         
-        prompt += `\n\n**مهمتك الأساسية:**`;
-        prompt += `\n1. الرد على الناس لما يسألون عن الراشد`;
-        prompt += `\n2. توصيل الرسائل المهمة للراشد`;
-        prompt += `\n3. التفاعل مع الناس بطبيعية وحبوبة`;
-        prompt += `\n4. إعطاء ردود ذكية على الأسئلة عن الراشد`;
-        prompt += `\n5. التركيز على العمل عند الحاجة فقط`;
+        prompt += `**أسلوبك:**\n`;
+        prompt += `- تكلم زي صديق طبيعي\n`;
+        prompt += `- ردودك قصيرة وسريعة (سطر أو سطرين)\n`;
+        prompt += `- كلم الناس بأسمائهم (مثل: يا ${nickname})\n`;
+        prompt += `- خلي الرد بسيط وواضح\n`;
+        prompt += `- اضف روح ومرح خفيف\n\n`;
         
-        prompt += `\n\n**متى تستخدم "راح أوصل رسالتك":**`;
-        prompt += `\n- فقط إذا طلبوا شي يخص الراشد مباشرة`;
-        prompt += `\n- إذا كان الموضوع مهم أو عمل`;
-        prompt += `\n- إذا طلبوا من الراشد شي خاص`;
+        prompt += `**عن الراشد:**\n`;
+        prompt += `- الراشد مشغول غالباً\n`;
+        prompt += `- إذا سألوا عنه: قل إنه مشغول وأنت موجود\n`;
+        prompt += `- لا تكرر نفس العبارة كثير\n`;
+        prompt += `- غيّر طريقة قول "الراشد مشغول" كل مرة\n\n`;
         
-        prompt += `\n\n**متى تتفاعل عادي:**`;
-        prompt += `\n- إذا سلموا أو سألوا عن الراشد`;
-        prompt += `\n- إذا كانوا يتكلمون عادي`;
-        prompt += `\n- إذا كان سؤال عام عن الراشد`;
-        prompt += `\n- إذا كان كلام ودّي أو مرح`;
+        prompt += `**متى توصل رسالة:**\n`;
+        prompt += `- فقط إذا طلبوا من الراشد شي خاص\n`;
+        prompt += `- إذا كان موضوع عمل أو مهم\n`;
+        prompt += `- إذا كان طلب واضح للراشد\n\n`;
         
-        prompt += `\n\n**أسلوب ردك:**`;
-        prompt += `\n- الردود قصيرة ومحبوبة`;
-        prompt += `\n- اللهجة سعودية بشرية طبيعية`;
-        prompt += `\n- بدون إيموجي إلا نادراً جداً`;
-        prompt += `\n- عربي صافي بدون كلمات أجنبية`;
-        prompt += `\n- ذكي في الرد على الأسئلة`;
+        prompt += `**متى ترد عادي:**\n`;
+        prompt += `- إذا سلموا أو حيوك\n`;
+        prompt += `- إذا سألوا عن حالك\n`;
+        prompt += `- إذا كان كلام ودّي\n`;
+        prompt += `- إذا كانوا يتسألون\n\n`;
         
-        prompt += `\n\n**أمثلة للردود الذكية:**`;
-        prompt += `\n- إذا سأل "وين الراشد؟": "مشغول في شغله الحين"`;
-        prompt += `\n- إذا سأل "وش سوى الراشد؟": "والله في دوامه ومشغول"`;
-        prompt += `\n- إذا سلم: "أهلاً فيك! الراشد مشغول بس أنا موجود"`;
-        prompt += `\n- إذا طلب شي مهم: "حاضر، راح أبلغ الراشد عن طلبك"`;
-        prompt += `\n- إذا تكلم عادي: "هلا والله! شلونك؟"`;
+        prompt += `**أمثلة لردودك:**\n`;
+        prompt += `- "السلام": "${timeGreeting} ${nickname}! الراشد مشغول بس أنا موجود"\n`;
+        prompt += `- "وين الراشد": "${this.getVariation('rashaad_busy')}"\n`;
+        prompt += `- "ابغى الراشد": "${this.getVariation('will_deliver')}"\n`;
+        prompt += `- "شلونك": "${this.getVariation('smalltalk')}"\n`;
+        prompt += `- "وش تسوي": "أتابع الرسائل! وش عندك جديد يا ${nickname}؟"\n\n`;
         
-        prompt += `\n\n**لا تكرر "راح أوصل رسالتك" لكل شي:**`;
-        prompt += `\n- ❌ خطأ: لكل كلمة تقول "راح أوصل رسالتك"`;
-        prompt += `\n- ✅ صح: تفاعل طبيعي مع الكلام العادي`;
-        prompt += `\n- ✅ صح: "راح أوصل" فقط للمواضيع المهمة`;
-        prompt += `\n- ✅ صح: جاوب بذكاء على الأسئلة عن الراشد`;
-        
-        prompt += `\n\n**المعلومات:**`;
-        prompt += `\n- المستخدم: ${pushName}`;
-        prompt += `\n- الوقت: ${timeGreeting}`;
-        prompt += `\n- نوع الرسالة: ${intent}`;
+        prompt += `**المعلومات:**\n`;
+        prompt += `- المستخدم: ${pushName} (ناديه: ${nickname})\n`;
+        prompt += `- الوقت: ${timeGreeting}\n`;
+        prompt += `- نوع الرسالة: ${intent}\n`;
+        prompt += `- مزاج المستخدم: ${personality.tone}\n\n`;
         
         if (context.conversationHistory.length > 0) {
-            prompt += `\n\n**المحادثة الأخيرة:**`;
+            prompt += `**آخر ما تكلمنا:**\n`;
             context.conversationHistory.slice(-2).forEach((msg, index) => {
-                prompt += `\n${msg.sender === 'user' ? pushName : 'أنت'}: ${msg.text.substring(0, 40)}...`;
+                prompt += `- ${msg.sender === 'user' ? nickname : 'أنت'}: ${msg.text.substring(0, 30)}\n`;
             });
+            prompt += `\n`;
         }
         
-        prompt += `\n\n**الرسالة الجديدة من ${pushName}:**`;
-        prompt += `\n"${userText}"`;
+        prompt += `**الرسالة الجديدة من ${nickname}:**\n`;
+        prompt += `"${userText}"\n\n`;
         
-        prompt += `\n\n**الآن رد على ${pushName} بطريقة:**`;
-        prompt += `\n1. كن إنسان طبيعي وذكي`;
-        prompt += `\n2. ركز على العمل إذا طلبوا شي مهم من الراشد`;
-        prompt += `\n3. جاوب بذكاء على الأسئلة عن الراشد`;
-        prompt += `\n4. تفاعل بطبيعية مع الكلام العادي`;
-        prompt += `\n5. الرد يكون قصير وبشري ومحبب`;
-        prompt += `\n6. لا تكرر "راح أوصل رسالتك" لكل شي`;
-        prompt += `\n7. أظهر ذكائك في الرد على الأسئلة`;
+        prompt += `**الآن أجب بطريقة:**\n`;
+        prompt += `1. رد قصير (ما يزيد عن سطرين)\n`;
+        prompt += `2. نادي المستخدم باسمه (${nickname})\n`;
+        prompt += `3. إذا سأل عن الراشد: جاوب بطريقة مختلفة عن المرة السابقة\n`;
+        prompt += `4. إذا طلب الراشد: قل إنك راح توصله الرسالة\n`;
+        prompt += `5. إذا كان كلام عادي: تفاعل معه\n`;
+        prompt += `6. خلي الرد طبيعي ومريح\n`;
+        prompt += `7. لا تكن روبوتي أو ممل\n`;
         
         return prompt;
     }
@@ -475,10 +520,10 @@ class SmartSecretary {
 
     getTokenLengthForPersonality(personality) {
         switch(personality.length) {
-            case 'short': return 120;
-            case 'medium': return 180;
-            case 'detailed': return 200;
-            default: return 150;
+            case 'short': return 80;
+            case 'medium': return 120;
+            case 'detailed': return 150;
+            default: return 100;
         }
     }
 
@@ -569,7 +614,7 @@ class SmartSecretary {
         response = response.replace(/[a-zA-Z]/g, '');
         
         // تقليل الإيموجيات (نادر جداً)
-        if (Math.random() > 0.05) {
+        if (Math.random() > 0.1) {
             response = response.replace(/[😂😄😍🤣🤩🎉😢😔💔😠👿🌅☀️🌆🌙❤️🤗💼📊👌]/g, '');
         }
         
@@ -577,8 +622,8 @@ class SmartSecretary {
         response = this.normalizeDialect(response);
         
         // تقصير الرد إذا كان طويلاً
-        if (response.length > 200) {
-            response = response.substring(0, 180);
+        if (response.length > 120) {
+            response = response.substring(0, 100) + '...';
         }
         
         return response.trim();
@@ -631,27 +676,56 @@ class SmartSecretary {
         }
     }
 
-    enhanceHumanTouch(response, userMood, conversationDepth) {
+    enhanceHumanTouch(response, userMood, conversationDepth, intent) {
         let enhanced = response;
         
         // إضافة الاهتمام حسب المزاج
         if (userMood === 'sad') {
-            const comfortPhrases = ['الله يعينك', 'ربي يفرج همك'];
+            const comfortPhrases = ['الله يعينك', 'ربي يفرج همك', 'الله يكون بعونك'];
             const randomComfort = comfortPhrases[Math.floor(Math.random() * comfortPhrases.length)];
-            enhanced += ' ' + randomComfort;
+            enhanced = enhanced.replace(/\.$/, '') + '. ' + randomComfort;
         } else if (userMood === 'happy') {
-            const happyPhrases = ['الله يبارك فيك', 'دام الضحكة'];
+            const happyPhrases = ['الله يبارك فيك', 'دام الضحكة', 'ربي يحفظك'];
             const randomHappy = happyPhrases[Math.floor(Math.random() * happyPhrases.length)];
-            enhanced += ' ' + randomHappy;
+            enhanced = enhanced.replace(/\.$/, '') + '. ' + randomHappy;
         }
         
+        // تغيير الردود المكررة
+        enhanced = this.replaceCommonPhrases(enhanced, intent);
+        
         // التأكد من الاختصار
-        if (enhanced.split(' ').length > 30) {
+        if (enhanced.split(' ').length > 25) {
             const words = enhanced.split(' ');
-            enhanced = words.slice(0, 25).join(' ');
+            enhanced = words.slice(0, 20).join(' ');
         }
         
         return enhanced.trim();
+    }
+    
+    replaceCommonPhrases(response, intent) {
+        // استبدال العبارات المكررة ببدائل
+        const replacements = {
+            'راح أوصل رسالتك': this.getVariation('will_deliver'),
+            'الراشد مشغول': this.getVariation('rashaad_busy'),
+            'أهلاً فيك': this.getVariation('greeting')
+        };
+        
+        let newResponse = response;
+        Object.entries(replacements).forEach(([phrase, replacement]) => {
+            if (newResponse.includes(phrase)) {
+                newResponse = newResponse.replace(phrase, replacement);
+            }
+        });
+        
+        return newResponse;
+    }
+    
+    getVariation(type) {
+        const variations = this.responseVariations.get(type);
+        if (variations && variations.length > 0) {
+            return variations[Math.floor(Math.random() * variations.length)];
+        }
+        return type === 'rashaad_busy' ? 'الراشد مشغول' : 'حاضر';
     }
 
     getTimeAppropriateGreeting() {
@@ -693,11 +767,12 @@ class SmartSecretary {
     }
 
     getNaturalFallbackResponse(pushName, originalText) {
+        const nickname = this.generateNickname(pushName);
         const fallbacks = [
-            `أهلاً ${pushName}! الراشد مشغول حالياً`,
-            `هلا والله ${pushName}! شلونك؟`,
-            `الراشد مشغول في شغله الحين`,
-            `يا هلا ${pushName}! في شي تبي تقوله للراشد؟`
+            `أهلاً ${nickname}! ${this.getVariation('rashaad_busy')}`,
+            `هلا والله ${nickname}! ${this.getVariation('smalltalk')}`,
+            `${this.getVariation('rashaad_busy')} يا ${nickname}`,
+            `يا هلا ${nickname}! وش تحتاج؟`
         ];
         return fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }
