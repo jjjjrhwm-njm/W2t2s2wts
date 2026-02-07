@@ -18,11 +18,11 @@ class SmartSecretary {
         // تفضيلات الرد البشرية
         this.humanResponseConfig = {
             typingVariations: [800, 1200, 1800, 2500],
-            responseLength: 'medium',
-            emotionLevel: 'warm',
-            formality: 'casual',
-            humorLevel: 'subtle',
-            empathyLevel: 'high'
+            responseLength: 'short',
+            emotionLevel: 'neutral',
+            formality: 'professional',
+            humorLevel: 'none',
+            empathyLevel: 'medium'
         };
     }
 
@@ -185,7 +185,8 @@ class SmartSecretary {
             'complaint': ['ماعجبني', 'مزعج', 'تعبان', 'زعلان', 'مللت', 'ضاق'],
             'thanks': ['شكرا', 'مشكور', 'يعطيك', 'الله', 'تسلم', 'ماقصرت'],
             'smalltalk': ['وشسويت', 'شلونك', 'اخبارك', 'وينك', 'وشفاكر'],
-            'joke': ['نكته', 'ضحكه', 'طايره', 'تضحك', 'يمزح']
+            'joke': ['نكته', 'ضحكه', 'طايره', 'تضحك', 'يمزح'],
+            'business': ['عمل', 'شغل', 'مشروع', 'صفقة', 'تجاره', 'بزنس']
         };
         
         for (const [intent, keywords] of Object.entries(intents)) {
@@ -228,87 +229,29 @@ class SmartSecretary {
         const relationship = profile.relationshipLevel;
         
         let personality = {
-            tone: 'balanced',
-            formality: 'casual',
-            warmth: 'medium',
+            tone: 'professional',
+            formality: 'professional',
+            warmth: 'low',
             humor: 'none',
             empathy: 'medium',
-            length: 'medium'
+            length: 'short'
         };
         
-        switch(relationship) {
-            case 'new':
-                personality.tone = 'polite';
-                personality.formality = 'semi-formal';
-                personality.warmth = 'low';
-                break;
-            case 'familiar':
-                personality.tone = 'friendly';
-                personality.formality = 'casual';
-                personality.warmth = 'medium';
-                personality.humor = 'subtle';
-                break;
-            case 'close':
-                personality.tone = 'intimate';
-                personality.formality = 'very-casual';
-                personality.warmth = 'high';
-                personality.humor = 'moderate';
-                personality.empathy = 'high';
-                break;
-            case 'trusted':
-                personality.tone = 'brotherly';
-                personality.formality = 'intimate';
-                personality.warmth = 'very-high';
-                personality.humor = 'high';
-                personality.empathy = 'very-high';
-                break;
-        }
-        
-        switch(userMood) {
-            case 'happy':
-                personality.tone = 'cheerful';
-                personality.humor = 'moderate';
-                personality.warmth = 'high';
-                break;
-            case 'sad':
-                personality.tone = 'comforting';
-                personality.empathy = 'very-high';
-                personality.humor = 'none';
-                personality.length = 'longer';
-                break;
-            case 'angry':
-                personality.tone = 'calm';
-                personality.formality = 'semi-formal';
-                personality.humor = 'none';
-                break;
-            case 'excited':
-                personality.tone = 'enthusiastic';
-                personality.warmth = 'high';
-                personality.humor = 'moderate';
-                break;
-        }
-        
-        switch(intent) {
-            case 'question':
-                personality.tone = 'informative';
-                personality.length = 'detailed';
-                break;
-            case 'request':
-                personality.tone = 'helpful';
-                personality.formality = 'polite';
-                break;
-            case 'complaint':
-                personality.tone = 'apologetic';
-                personality.empathy = 'very-high';
-                break;
-            case 'thanks':
-                personality.tone = 'grateful';
-                personality.warmth = 'high';
-                break;
-            case 'joke':
-                personality.tone = 'playful';
-                personality.humor = 'high';
-                break;
+        if (intent === 'business' || intent === 'request') {
+            personality.tone = 'business';
+            personality.formality = 'professional';
+            personality.warmth = 'low';
+            personality.length = 'short';
+        } else if (intent === 'question') {
+            personality.tone = 'informative';
+            personality.length = 'short';
+        } else if (intent === 'greeting') {
+            personality.tone = 'polite';
+            personality.length = 'very-short';
+        } else if (intent === 'smalltalk' || intent === 'joke') {
+            personality.tone = 'polite';
+            personality.length = 'very-short';
+            personality.warmth = 'low';
         }
         
         return personality;
@@ -349,7 +292,7 @@ class SmartSecretary {
             // استخدام Gemini كبديل (باستخدام الطريقة الصحيحة)
             try {
                 const model = genAI.getGenerativeModel({ 
-                    model: "gemini-pro" // استخدام نموذج أكثر استقراراً
+                    model: "gemini-pro"
                 });
                 
                 const result = await model.generateContent({
@@ -379,134 +322,101 @@ class SmartSecretary {
     }
 
     getFallbackResponse(pushName, text, personality) {
-        const fallbackResponses = {
-            greeting: `مرحباً ${pushName}!
-كيفك اليوم؟ ايش الأخبار؟`,
-            question: `سؤال حلو يا ${pushName}!
-بالنسبة لي، يمكن نبحث عن المعلومة مع بعض`,
-            request: `تمام ${pushName}،
-أنا موجود علشان أساعدك، قلي وش بالضبط تحتاجه؟`,
-            default: `أهلاً وسهلاً ${pushName}!
-كيف يمكنني أكون مفيد لك اليوم؟`
-        };
-
         const intent = this.detectUserIntent(text);
-        return fallbackResponses[intent] || fallbackResponses.default;
+        
+        if (intent === 'business' || intent === 'request') {
+            return `الراشد مشغول حالياً. تواصل معاه وقت ثاني.`;
+        } else if (intent === 'question') {
+            return `الراشد ما يقدر يرد الحين. جرب وقت ثاني.`;
+        } else if (intent === 'greeting') {
+            return `الراشد مشغول.`;
+        } else {
+            return `الراشد مشغول. تواصل معاه وقت ثاني.`;
+        }
     }
 
     createHumanSystemPrompt(pushName, personality, context) {
         const timeGreeting = this.getTimeAppropriateGreeting();
-        const relationshipLevel = context.relationshipLevel;
         
-        let prompt = `أنت مساعد الراشد. أنت تتحدث مع ${pushName}.`;
-        prompt += `\n${timeGreeting}`;
+        let prompt = `أنت مساعد الراشد. مهمتك ترد على الرسائل لما الراشد مشغول.`;
+        prompt += `\nالراشد مشغول حالياً في شغله.`;
         
-        switch(relationshipLevel) {
-            case 'new':
-                prompt += `\nأنت تتحدث لأول مرة مع ${pushName}، كن لطيفاً وترحيبياً.`;
-                break;
-            case 'familiar':
-                prompt += `\nتعرف ${pushName} من قبل، تحدث بطريقة ودودة.`;
-                break;
-            case 'close':
-                prompt += `\nأنت قريب من ${pushName}، يمكنك التحدث بطريقة حميمية ومرحة.`;
-                break;
-            case 'trusted':
-                prompt += `\nأنت صديق مقرب لـ${pushName}، تحدث بطريقة أخوية وواثقة.`;
-                break;
-        }
+        prompt += `\n\n**مهمتك:**`;
+        prompt += `\n1. ترد باختصار شديد`;
+        prompt += `\n2. توضح أن الراشد مشغول`;
+        prompt += `\n3. ما تتسلى أو تطول في الكلام`;
+        prompt += `\n4. ركز على الرسائل المهمة فقط`;
+        prompt += `\n5. إذا كان الموضوع تافه أو تسليه، تجاهله أو رد باختصار شديد`;
         
-        prompt += `\n\n**شخصيتك في هذه المحادثة:**`;
-        prompt += `\n- النبرة: ${this.translateTone(personality.tone)}`;
-        prompt += `\n- الدفء: ${this.translateWarmth(personality.warmth)}`;
-        prompt += `\n- الفكاهة: ${this.translateHumor(personality.humor)}`;
-        prompt += `\n- التعاطف: ${this.translateEmpathy(personality.empathy)}`;
-        prompt += `\n- الطول: ${this.translateLength(personality.length)}`;
+        prompt += `\n\n**نمط الرد:**`;
+        prompt += `\n- الردود قصيرة جداً (جملة أو جملتين)`;
+        prompt += `\n- اللهجة سعودية مختصرة`;
+        prompt += `\n- بدون ايموجيات إلا إذا كانت ضرورية جداً`;
+        prompt += `\n- بدون مزح أو تسليه`;
+        prompt += `\n- ركز على الجدية والإختصار`;
         
-        prompt += `\n\n**القواعد الأساسية:**`;
-        prompt += `\n1. لا تبدو كروبوت أبداً`;
-        prompt += `\n2. تحدث باللهجة السعودية الطبيعية`;
-        prompt += `\n3. استخدم اختصارات الكلام: "وش" بدلاً من "ماذا"`;
-        prompt += `\n4. أضف تعبيرات بشرية: "الحين"، "والله"، "يا ليت"`;
-        prompt += `\n5. استخدم الإيموجي المناسب`;
-        prompt += `\n6. كن مختصراً إلا إذا كان الموضوع يستحق التفصيل`;
-        prompt += `\n7. إذا لم تعرف شيئاً، قل بصراحة "والله ما ادري"`;
-        prompt += `\n8. استخدم ردوداً طبيعية مثل: "اكيد"، "تمم"`;
-        prompt += `\n9. أضف لمستك الشخصية: "بالنسبه لي"، "انا اشوف"`;
+        prompt += `\n\n**أمثلة على الردود:**`;
+        prompt += `\n- "الراشد مشغول حالياً."`;
+        prompt += `\n- "ما يقدر يرد الحين، جرب وقت ثاني."`;
+        prompt += `\n- "في شغل مهم الحين، تواصل معاه بوقت ثاني."`;
+        prompt += `\n- "أخبره بالموضوع باختصار."`;
+        prompt += `\n- "سأبلغه برسالتك."`;
         
         if (context.conversationHistory.length > 0) {
             prompt += `\n\n**المحادثة السابقة:**`;
-            context.conversationHistory.forEach((msg, index) => {
-                prompt += `\n${msg.sender === 'user' ? pushName : 'أنت'}: ${msg.text}`;
+            context.conversationHistory.slice(-2).forEach((msg, index) => {
+                prompt += `\n${msg.sender === 'user' ? pushName : 'أنت'}: ${msg.text.substring(0, 30)}...`;
             });
         }
         
-        if (context.userProfile.knownTopics.size > 0) {
-            prompt += `\n\n**اهتمامات ${pushName}:** ${Array.from(context.userProfile.knownTopics).join(', ')}`;
-        }
-        
-        prompt += `\n\n**الآن ${pushName} يقول:**`;
+        prompt += `\n\n**الآن ${pushName} يقول:** "${text.substring(0, 50)}..."`;
+        prompt += `\n\n**ردك يجب يكون:** قصير، واضح، ويبين أن الراشد مشغول.`;
         
         return prompt;
     }
 
     getTemperatureForPersonality(personality) {
         const baseTemps = {
-            'polite': 0.5,
-            'friendly': 0.6,
-            'intimate': 0.7,
-            'brotherly': 0.8,
-            'cheerful': 0.75,
-            'comforting': 0.65,
-            'calm': 0.5,
-            'enthusiastic': 0.8,
-            'informative': 0.6,
-            'helpful': 0.65,
-            'apologetic': 0.55,
-            'grateful': 0.7,
-            'playful': 0.85
+            'professional': 0.3,
+            'business': 0.3,
+            'polite': 0.4,
+            'informative': 0.4,
+            'balanced': 0.3
         };
         
-        return baseTemps[personality.tone] || 0.6;
+        return baseTemps[personality.tone] || 0.3;
     }
 
     getTokenLengthForPersonality(personality) {
         switch(personality.length) {
-            case 'short': return 150;
-            case 'medium': return 250;
-            case 'detailed': return 400;
-            case 'longer': return 350;
-            default: return 250;
+            case 'very-short': return 50;
+            case 'short': return 80;
+            case 'medium': return 120;
+            case 'detailed': return 200;
+            case 'longer': return 150;
+            default: return 80;
         }
     }
 
     translateTone(tone) {
         const translations = {
             'polite': 'مهذب',
-            'friendly': 'ودود',
-            'intimate': 'حميمي',
-            'brotherly': 'أخوي',
-            'cheerful': 'مبتهج',
-            'comforting': 'مطمئن',
-            'calm': 'هادئ',
-            'enthusiastic': 'متحمس',
+            'professional': 'احترافي',
+            'business': 'عمل',
             'informative': 'مفيد',
-            'helpful': 'مساعد',
-            'apologetic': 'معتذر',
-            'grateful': 'شاكر',
-            'playful': 'مرح'
+            'balanced': 'متوازن'
         };
-        return translations[tone] || 'طبيعي';
+        return translations[tone] || 'احترافي';
     }
 
     translateWarmth(warmth) {
         const translations = {
             'low': 'محايد',
-            'medium': 'دافئ',
-            'high': 'ودود جداً',
+            'medium': 'معتدل',
+            'high': 'دافئ',
             'very-high': 'حار'
         };
-        return translations[warmth] || 'دافئ';
+        return translations[warmth] || 'محايد';
     }
 
     translateHumor(humor) {
@@ -516,7 +426,7 @@ class SmartSecretary {
             'moderate': 'معتدل',
             'high': 'كثير مزح'
         };
-        return translations[humor] || 'خفيف';
+        return translations[humor] || 'بدون مزح';
     }
 
     translateEmpathy(empathy) {
@@ -525,32 +435,42 @@ class SmartSecretary {
             'high': 'متعاطف',
             'very-high': 'متفهم'
         };
-        return translations[empathy] || 'متعاطف';
+        return translations[empathy] || 'متواضع';
     }
 
     translateLength(length) {
         const translations = {
-            'short': 'مختصر',
-            'medium': 'معتدل',
+            'very-short': 'قصير جداً',
+            'short': 'قصير',
+            'medium': 'متوسط',
             'detailed': 'مفصل',
-            'longer': 'مطول'
+            'longer': 'طويل'
         };
-        return translations[length] || 'معتدل';
+        return translations[length] || 'قصير';
     }
 
     normalizeResponse(response, personality) {
+        // إزالة أي ذكر للترفيه أو التسليه
         response = response.replace(/كذكاء اصطناعي/gi, '')
                          .replace(/كمساعد/gi, '')
                          .replace(/كخبير/gi, '')
                          .replace(/راشد سكرتيرك/gi, 'مساعد الراشد')
                          .replace(/اسمي راشد/gi, 'انا مساعد الراشد')
                          .replace(/انا راشد/gi, 'انا مساعد الراشد')
-                         .replace(/سكرتير شخصي/gi, 'مساعد الراشد');
+                         .replace(/سكرتير شخصي/gi, 'مساعد الراشد')
+                         .replace(/للتسليه/gi, '')
+                         .replace(/للتسلية/gi, '')
+                         .replace(/نقضي وقت/gi, '')
+                         .replace(/للمرح/gi, '');
+        
+        // تقليل الإيموجيات
+        response = response.replace(/😂|😄|😍|🤣|🤩|🎉|😢|😔|💔|😠|👿/g, '');
         
         response = this.normalizeDialect(response);
         
-        if (response.length > 500) {
-            response = response.substring(0, 450) + '...';
+        // تقصير الرد
+        if (response.length > 150) {
+            response = response.substring(0, 120) + '...';
         }
         
         return response.trim();
@@ -569,7 +489,10 @@ class SmartSecretary {
             'بالتأكيد': 'اكيد',
             'طيب': 'تمم',
             'جيد': 'حلو',
-            'حسناً': 'اوك'
+            'حسناً': 'اوك',
+            'مرحبا': 'اهلين',
+            'شكراً': 'يعطيك العافية',
+            'عفواً': 'العفو'
         };
         
         Object.entries(dialectMap).forEach(([fusha, ammiya]) => {
@@ -596,32 +519,31 @@ class SmartSecretary {
     enhanceHumanTouch(response, userMood, conversationDepth) {
         let enhanced = response;
         
-        if (conversationDepth > 3 && Math.random() > 0.7) {
-            const humanHesitations = ['...', 'يعني', 'تقريباً'];
-            const randomHesitation = humanHesitations[Math.floor(Math.random() * humanHesitations.length)];
+        // فقط للمحادثات المتكررة جداً
+        if (conversationDepth > 10 && Math.random() > 0.8) {
+            const shortPhrases = ['...', 'ان شاء الله', 'الله يسهل'];
+            const randomPhrase = shortPhrases[Math.floor(Math.random() * shortPhrases.length)];
+            enhanced = enhanced + ' ' + randomPhrase;
+        }
+        
+        // إزالة أي إيموجي متبقي
+        enhanced = enhanced.replace(/🌅|☀️|🌆|🌙|❤️|🤗|💼|📊|👌/g, '');
+        
+        // التأكد من أن الرد قصير
+        if (enhanced.split(' ').length > 25) {
             const words = enhanced.split(' ');
-            if (words.length > 3) {
-                const insertIndex = Math.floor(Math.random() * (words.length - 2)) + 1;
-                words.splice(insertIndex, 0, randomHesitation);
-                enhanced = words.join(' ');
-            }
+            enhanced = words.slice(0, 20).join(' ');
         }
         
-        if (userMood === 'sad' && Math.random() > 0.5) {
-            const comfortPhrases = ['الله يعينك', 'ربي يفرج همك'];
-            const randomComfort = comfortPhrases[Math.floor(Math.random() * comfortPhrases.length)];
-            enhanced += ' ' + randomComfort;
-        }
-        
-        return enhanced;
+        return enhanced.trim();
     }
 
     getTimeAppropriateGreeting() {
         const hour = new Date().getHours();
-        if (hour >= 5 && hour < 12) return 'صباح الخير 🌅';
-        if (hour >= 12 && hour < 17) return 'مساء النور ☀️';
-        if (hour >= 17 && hour < 21) return 'مساء الخير 🌆';
-        return 'مساء الليل 🌙';
+        if (hour >= 5 && hour < 12) return 'صباح الخير';
+        if (hour >= 12 && hour < 17) return 'مساء النور';
+        if (hour >= 17 && hour < 21) return 'مساء الخير';
+        return 'مساء الليل';
     }
 
     getTimeOfDay() {
@@ -656,9 +578,10 @@ class SmartSecretary {
 
     getNaturalFallbackResponse(pushName, originalText) {
         const fallbacks = [
-            `آسف ${pushName}، شوي مشغول. وش كانت تقول؟`,
-            `${pushName} والله ما قدرت افهم بالضبط، تقدر تعيد؟`,
-            `ياخوي ${pushName}، شكلي مو فاهمك صح. قلي مره ثانيه`,
+            `الراشد مشغول حالياً.`,
+            `ما يقدر يرد الحين.`,
+            `تواصل معاه وقت ثاني.`,
+            `في شغل مهم الحين.`,
         ];
         return fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }
@@ -675,7 +598,7 @@ class SmartSecretary {
             profile.knownTopics.clear();
         }
         
-        return `تم مسح ذاكرة المحادثة مع ${profile?.name || 'المستخدم'}`;
+        return `تم مسح ذاكرة المحادثة`;
     }
 }
 
