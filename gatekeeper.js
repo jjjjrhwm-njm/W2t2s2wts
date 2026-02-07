@@ -1,87 +1,183 @@
-// gatekeeper.js - النسخة الاحترافية لراشد (تحديث 10 دقائق + الأسماء الحقيقية)
+// gatekeeper.js - النسخة المصححة والمطورة (ملف واحد كامل)
 const pendingPermissions = new Map();
-const activeSessions = new Map(); // ذاكرة السماح (لمدة 10 دقائق)
+const activeSessions = new Map();
 
 class Gatekeeper {
     constructor() {
-        this.timeoutLimit = 35000; // 35 ثانية للرد التلقائي
-        this.sessionDuration = 10 * 60 * 1000; // 10 دقائق بالملي ثانية
+        this.timeoutLimit = 35000;
+        this.sessionDuration = 10 * 60 * 1000;
         this.lastRequestJid = null;
+        this.sock = null; // سنخزن كائن sock هنا
+        this.ownerJid = null; // سنخزن JID المالك هنا
     }
 
-    // ميزة حقيقية: جلب الاسم الذي سجلته أنت في جهات اتصالك
-    getSavedName(jid, sock) {
-        const contact = sock.contacts ? sock.contacts[jid] : null;
-        // إذا وجد اسم مسجل عندك (name) استخدمه، وإلا استخدم الاسم الذي وضعه هو لنفسه
-        return contact?.name || contact?.verifiedName || null;
+    // تهيئة الـ Gatekeeper عند بدء البوت
+    initialize(sock, ownerJid) {
+        this.sock = sock;
+        this.ownerJid = ownerJid;
+        console.log('✅ Gatekeeper جاهز للعمل');
     }
 
-    async handleEverything(jid, pushName, text, sock, ownerJid) {
-        if (jid === ownerJid || jid.includes('@g.us')) return { status: 'PROCEED' };
+    // دالة محسنة لجلب الاسم من جهات الاتصال
+    async getSavedName(jid) {
+        try {
+            if (!this.sock) return null;
+            
+            // المحاولة الأولى: من خلال دالة getContactById
+            if (this.sock.getContactById) {
+                try {
+                    const contact = await this.sock.getContactById(jid);
+                    if (contact?.name?.trim()) return contact.name.trim();
+                    if (contact?.notify?.trim()) return contact.notify.trim();
+                    if (contact?.verifiedName?.trim()) return contact.verifiedName.trim();
+                } catch (error) {
+                    console.log('⚠️ استخدام الطريقة الثانية لجلب الاسم');
+                }
+            }
+            
+            // المحاولة الثانية: من مخزن جهات الاتصال
+            if (this.sock.contacts && this.sock.contacts[jid]) {
+                const contact = this.sock.contacts[jid];
+                if (contact?.name?.trim()) return contact.name.trim();
+                if (contact?.notify?.trim()) return contact.notify.trim();
+                if (contact?.verifiedName?.trim()) return contact.verifiedName.trim();
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('❌ خطأ في جلب الاسم:', error);
+            return null;
+        }
+    }
 
-        // 1. التحقق من "جلسة العشر دقائق"
+    async handleEverything(jid, pushName, text) {
+        // تجاهل الرسائل من المالك أو المجموعات
+        if (jid === this.ownerJid || jid.includes('@g.us')) {
+            return { status: 'PROCEED' };
+        }
+
+        // التحقق من الجلسة النشطة
         const now = Date.now();
         if (activeSessions.has(jid)) {
-            const lastAllowed = activeSessions.get(jid);
-            if (now - lastAllowed < this.sessionDuration) {
-                return { status: 'PROCEED' }; // مسموح له، لا يطلب إذن مرة أخرى
+            const sessionData = activeSessions.get(jid);
+            if (now - sessionData.timestamp < this.sessionDuration) {
+                return { status: 'PROCEED' };
             } else {
-                activeSessions.delete(jid); // انتهت الـ 10 دقائق، اطلب إذن من جديد
+                activeSessions.delete(jid);
             }
         }
 
-        if (pendingPermissions.has(jid)) return { status: 'WAITING' };
+        // إذا كان هناك طلب معلق بالفعل
+        if (pendingPermissions.has(jid)) {
+            return { status: 'WAITING' };
+        }
 
+        // حفظ الطلب الحالي
         this.lastRequestJid = jid;
         
-        // 2. استخدام الاسم المسجل عندك (إذا وجد)
-        const savedName = this.getSavedName(jid, sock);
-        const displayName = savedName ? `✅ ${savedName} (مسجل عندك)` : `👤 ${pushName} (غير مسجل)`;
+        // جلب الاسم الحقيقي
+        const savedName = await this.getSavedName(jid);
+        const displayName = savedName ? savedName : pushName || jid.split('@')[0];
+        const nameStatus = savedName ? '✅ مسجل في جهات الاتصال' : '⚠️ غير مسجل';
         
-        const requestMsg = `🔔 *إذن سكرتير (تيك تك)*\n\n` +
-                           `📝 الاسم: ${displayName}\n` +
-                           `📱 الرقم: ${jid.split('@')[0]}\n` +
-                           `💬 الرسالة: "${text}"\n\n` +
-                           `*رد بـ (نعم) للقبول، أو (لا) للمنع.*\n` +
-                           `⏳ (سأسمح له تلقائياً بعد 35 ثانية إذا لم ترد)`;
+        // إرسال طلب الإذن للمالك
+        const requestMsg = `🔔 *طلب إذن وصول*\n\n` +
+                         `👤 *الاسم:* ${displayName}\n` +
+                         `📊 *الحالة:* ${nameStatus}\n` +
+                         `📱 *الرقم:* ${jid.split('@')[0]}\n` +
+                         `💬 *الرسالة:* "${text.length > 100 ? text.substring(0, 100) + '...' : text}"\n\n` +
+                         `⏰ *المدة:* 10 دقائق بعد الموافقة\n\n` +
+                         `✅ *نعم* - للسماح\n` +
+                         `❌ *لا* - للمنع\n` +
+                         `⏳ (تلقائي بعد 35 ثانية)`;
 
-        await sock.sendMessage(ownerJid, { text: requestMsg });
+        await this.sock.sendMessage(this.ownerJid, { text: requestMsg });
 
+        // انتظار القرار
         return new Promise((resolve) => {
             const timer = setTimeout(() => {
                 if (pendingPermissions.has(jid)) {
                     pendingPermissions.delete(jid);
-                    activeSessions.set(jid, Date.now()); // ابدأ عداد الـ 10 دقائق
-                    resolve({ status: 'PROCEED' });
+                    // السماح تلقائياً
+                    activeSessions.set(jid, { 
+                        timestamp: Date.now(),
+                        autoApproved: true 
+                    });
+                    resolve({ status: 'PROCEED', autoApproved: true });
                 }
             }, this.timeoutLimit);
 
-            pendingPermissions.set(jid, { resolve, timer });
+            pendingPermissions.set(jid, { 
+                resolve, 
+                timer,
+                displayName 
+            });
         });
     }
 
+    // معالجة قرار المالك
     handleOwnerDecision(text) {
-        const decision = text.trim();
-        if ((decision === 'نعم' || decision === 'لا') && this.lastRequestJid) {
+        const decision = text.trim().toLowerCase();
+        
+        // التحقق من جميع أشكال "نعم"
+        const isYes = ['نعم', 'yes', 'y', '✅', '✔', '👍', 'موافق', 'قبول', 'ok', 'okay', 'اوك', 'ن', 'yeah', 'yea'].includes(decision);
+        // التحقق من جميع أشكال "لا"
+        const isNo = ['لا', 'no', 'n', '❌', '✖', '👎', 'رفض', 'منع', 'مرفوض', 'block', 'ل', 'nope', 'nah'].includes(decision);
+        
+        if ((isYes || isNo) && this.lastRequestJid) {
             const targetJid = this.lastRequestJid;
+            
             if (pendingPermissions.has(targetJid)) {
-                const { resolve, timer } = pendingPermissions.get(targetJid);
+                const { resolve, timer, displayName } = pendingPermissions.get(targetJid);
                 clearTimeout(timer);
                 pendingPermissions.delete(targetJid);
-                this.lastRequestJid = null;
                 
-                if (decision === 'نعم') {
-                    activeSessions.set(targetJid, Date.now()); // ابدأ الـ 10 دقائق
-                    resolve({ status: 'PROCEED' });
+                if (isYes) {
+                    // السماح
+                    activeSessions.set(targetJid, { 
+                        timestamp: Date.now(),
+                        approvedBy: this.ownerJid,
+                        userName: displayName
+                    });
+                    
+                    // إرسال تأكيد للمالك
+                    this.sock.sendMessage(this.ownerJid, { 
+                        text: `✅ *تم السماح*\n\n👤 ${displayName}\n📱 ${targetJid.split('@')[0]}\n⏰ لمدة 10 دقائق` 
+                    }).catch(() => {});
+                    
+                    resolve({ status: 'PROCEED', ownerApproved: true });
                 } else {
-                    activeSessions.delete(targetJid); // امسح أي جلسة سابقة
-                    resolve({ status: 'STOP' }); // منع حقيقي
+                    // منع
+                    this.sock.sendMessage(this.ownerJid, { 
+                        text: `❌ *تم المنع*\n\n👤 ${displayName}\n📱 ${targetJid.split('@')[0]}\n\nلن يتمكن من إرسال رسائل.` 
+                    }).catch(() => {});
+                    
+                    resolve({ status: 'STOP', ownerDenied: true });
                 }
+                
+                this.lastRequestJid = null;
                 return true;
             }
         }
+        
         return false;
+    }
+    
+    // دالة مساعدة للتحقق
+    getSessionInfo(jid) {
+        if (activeSessions.has(jid)) {
+            const session = activeSessions.get(jid);
+            const remaining = this.sessionDuration - (Date.now() - session.timestamp);
+            return {
+                active: true,
+                remaining: Math.max(0, Math.round(remaining / 1000)),
+                userName: session.userName
+            };
+        }
+        return { active: false };
     }
 }
 
-module.exports = new Gatekeeper();
+// إنشاء نسخة واحدة فقط من Gatekeeper
+const gatekeeper = new Gatekeeper();
+module.exports = gatekeeper;
