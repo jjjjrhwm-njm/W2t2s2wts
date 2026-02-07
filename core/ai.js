@@ -18,7 +18,7 @@ class SmartSecretary {
         // تفضيلات الرد البشرية
         this.humanResponseConfig = {
             typingVariations: [800, 1200, 1800, 2500],
-            responseLength: 'short',
+            responseLength: 'medium',
             emotionLevel: 'warm',
             formality: 'casual',
             humorLevel: 'subtle',
@@ -233,7 +233,7 @@ class SmartSecretary {
             warmth: 'medium',
             humor: 'none',
             empathy: 'medium',
-            length: 'short'
+            length: 'medium'
         };
         
         switch(relationship) {
@@ -274,7 +274,7 @@ class SmartSecretary {
                 personality.tone = 'comforting';
                 personality.empathy = 'very-high';
                 personality.humor = 'none';
-                personality.length = 'medium';
+                personality.length = 'longer';
                 break;
             case 'angry':
                 personality.tone = 'calm';
@@ -291,7 +291,7 @@ class SmartSecretary {
         switch(intent) {
             case 'question':
                 personality.tone = 'informative';
-                personality.length = 'medium';
+                personality.length = 'detailed';
                 break;
             case 'request':
                 personality.tone = 'helpful';
@@ -380,10 +380,14 @@ class SmartSecretary {
 
     getFallbackResponse(pushName, text, personality) {
         const fallbackResponses = {
-            greeting: `مرحباً ${pushName}!`,
-            question: `سؤال حلو يا ${pushName}!`,
-            request: `تمام ${pushName}، شني تحتاج؟`,
-            default: `أهلاً ${pushName}!`
+            greeting: `مرحباً ${pushName}!
+كيفك اليوم؟ ايش الأخبار؟`,
+            question: `سؤال حلو يا ${pushName}!
+بالنسبة لي، يمكن نبحث عن المعلومة مع بعض`,
+            request: `تمام ${pushName}،
+أنا موجود علشان أساعدك، قلي وش بالضبط تحتاجه؟`,
+            default: `أهلاً وسهلاً ${pushName}!
+كيف يمكنني أكون مفيد لك اليوم؟`
         };
 
         const intent = this.detectUserIntent(text);
@@ -394,41 +398,51 @@ class SmartSecretary {
         const timeGreeting = this.getTimeAppropriateGreeting();
         const relationshipLevel = context.relationshipLevel;
         
-        let prompt = `أنت مساعد الراشد. تتحدث مع ${pushName}.`;
+        let prompt = `أنت مساعد الراشد. أنت تتحدث مع ${pushName}.`;
         prompt += `\n${timeGreeting}`;
         
         switch(relationshipLevel) {
             case 'new':
-                prompt += `\nتكلم مع ${pushName} باختصار.`;
+                prompt += `\nأنت تتحدث لأول مرة مع ${pushName}، كن لطيفاً وترحيبياً.`;
                 break;
             case 'familiar':
-                prompt += `\nتحدث مع ${pushName} بطريقة سريعه.`;
+                prompt += `\nتعرف ${pushName} من قبل، تحدث بطريقة ودودة.`;
                 break;
             case 'close':
-                prompt += `\nقريب من ${pushName}، كلمه بطريقة سريعه.`;
+                prompt += `\nأنت قريب من ${pushName}، يمكنك التحدث بطريقة حميمية ومرحة.`;
                 break;
             case 'trusted':
-                prompt += `\nصديق ${pushName}، رد عليه بسرعة.`;
+                prompt += `\nأنت صديق مقرب لـ${pushName}، تحدث بطريقة أخوية وواثقة.`;
                 break;
         }
         
-        prompt += `\n\n**شخصيتك:**`;
+        prompt += `\n\n**شخصيتك في هذه المحادثة:**`;
         prompt += `\n- النبرة: ${this.translateTone(personality.tone)}`;
-        prompt += `\n- الطول: قصير جداً`;
+        prompt += `\n- الدفء: ${this.translateWarmth(personality.warmth)}`;
+        prompt += `\n- الفكاهة: ${this.translateHumor(personality.humor)}`;
+        prompt += `\n- التعاطف: ${this.translateEmpathy(personality.empathy)}`;
+        prompt += `\n- الطول: ${this.translateLength(personality.length)}`;
         
         prompt += `\n\n**القواعد الأساسية:**`;
-        prompt += `\n1. ردودك قصيرة جداً`;
-        prompt += `\n2. تحدث باللهجة السعودية فقط`;
-        prompt += `\n3. استخدم كلمات سعودية: "وش"، "شلون"، "ابغى"`;
-        prompt += `\n4. لا تطيل في الكلام`;
-        prompt += `\n5. اذا ما تعرف، قل "ما ادري"`;
-        prompt += `\n6. استخدم ردود قصيرة: "تمم"، "حلو"، "اوك"`;
+        prompt += `\n1. لا تبدو كروبوت أبداً`;
+        prompt += `\n2. تحدث باللهجة السعودية الطبيعية`;
+        prompt += `\n3. استخدم اختصارات الكلام: "وش" بدلاً من "ماذا"`;
+        prompt += `\n4. أضف تعبيرات بشرية: "الحين"، "والله"، "يا ليت"`;
+        prompt += `\n5. استخدم الإيموجي المناسب`;
+        prompt += `\n6. كن مختصراً إلا إذا كان الموضوع يستحق التفصيل`;
+        prompt += `\n7. إذا لم تعرف شيئاً، قل بصراحة "والله ما ادري"`;
+        prompt += `\n8. استخدم ردوداً طبيعية مثل: "اكيد"، "تمم"`;
+        prompt += `\n9. أضف لمستك الشخصية: "بالنسبه لي"، "انا اشوف"`;
         
         if (context.conversationHistory.length > 0) {
-            prompt += `\n\n**المحادثة السابقة (باختصار):**`;
-            context.conversationHistory.slice(-2).forEach((msg, index) => {
-                prompt += `\n${msg.sender === 'user' ? pushName : 'أنت'}: ${msg.text.substring(0, 50)}`;
+            prompt += `\n\n**المحادثة السابقة:**`;
+            context.conversationHistory.forEach((msg, index) => {
+                prompt += `\n${msg.sender === 'user' ? pushName : 'أنت'}: ${msg.text}`;
             });
+        }
+        
+        if (context.userProfile.knownTopics.size > 0) {
+            prompt += `\n\n**اهتمامات ${pushName}:** ${Array.from(context.userProfile.knownTopics).join(', ')}`;
         }
         
         prompt += `\n\n**الآن ${pushName} يقول:**`;
@@ -458,11 +472,11 @@ class SmartSecretary {
 
     getTokenLengthForPersonality(personality) {
         switch(personality.length) {
-            case 'short': return 80;
-            case 'medium': return 120;
-            case 'detailed': return 200;
-            case 'longer': return 150;
-            default: return 80;
+            case 'short': return 150;
+            case 'medium': return 250;
+            case 'detailed': return 400;
+            case 'longer': return 350;
+            default: return 250;
         }
     }
 
@@ -516,12 +530,12 @@ class SmartSecretary {
 
     translateLength(length) {
         const translations = {
-            'short': 'قصير جداً',
-            'medium': 'قصير',
-            'detailed': 'متوسط',
-            'longer': 'طويل'
+            'short': 'مختصر',
+            'medium': 'معتدل',
+            'detailed': 'مفصل',
+            'longer': 'مطول'
         };
-        return translations[length] || 'قصير';
+        return translations[length] || 'معتدل';
     }
 
     normalizeResponse(response, personality) {
@@ -530,12 +544,13 @@ class SmartSecretary {
                          .replace(/كخبير/gi, '')
                          .replace(/راشد سكرتيرك/gi, 'مساعد الراشد')
                          .replace(/اسمي راشد/gi, 'انا مساعد الراشد')
-                         .replace(/انا راشد/gi, 'انا مساعد الراشد');
+                         .replace(/انا راشد/gi, 'انا مساعد الراشد')
+                         .replace(/سكرتير شخصي/gi, 'مساعد الراشد');
         
         response = this.normalizeDialect(response);
         
-        if (response.length > 100) {
-            response = response.substring(0, 90) + '...';
+        if (response.length > 500) {
+            response = response.substring(0, 450) + '...';
         }
         
         return response.trim();
@@ -554,26 +569,7 @@ class SmartSecretary {
             'بالتأكيد': 'اكيد',
             'طيب': 'تمم',
             'جيد': 'حلو',
-            'حسناً': 'اوك',
-            'نعم': 'ايوه',
-            'لا': 'لا',
-            'مرحبا': 'اهلين',
-            'شكرا': 'يعطيك العافية',
-            'عفوا': 'العفو',
-            'هل': 'هل',
-            'ما هو': 'وش',
-            'ما هي': 'وش',
-            'كثير': 'مره',
-            'جدا': 'مره',
-            'الآن': 'الحين',
-            'سوف': 'راح',
-            'يمكن': 'يمكن',
-            'ربما': 'يمكن',
-            'بسرعة': 'ع السريع',
-            'ببطء': 'على مهلك',
-            'أين أنت': 'وينك',
-            'كيف حالك': 'شلونك',
-            'ماذا تفعل': 'وش تسوي'
+            'حسناً': 'اوك'
         };
         
         Object.entries(dialectMap).forEach(([fusha, ammiya]) => {
@@ -601,21 +597,20 @@ class SmartSecretary {
         let enhanced = response;
         
         if (conversationDepth > 3 && Math.random() > 0.7) {
-            const saudiPhrases = ['...', 'يا حليلك', 'الله لايهينك'];
-            const randomPhrase = saudiPhrases[Math.floor(Math.random() * saudiPhrases.length)];
-            enhanced = enhanced + ' ' + randomPhrase;
+            const humanHesitations = ['...', 'يعني', 'تقريباً'];
+            const randomHesitation = humanHesitations[Math.floor(Math.random() * humanHesitations.length)];
+            const words = enhanced.split(' ');
+            if (words.length > 3) {
+                const insertIndex = Math.floor(Math.random() * (words.length - 2)) + 1;
+                words.splice(insertIndex, 0, randomHesitation);
+                enhanced = words.join(' ');
+            }
         }
         
         if (userMood === 'sad' && Math.random() > 0.5) {
-            const comfortPhrases = ['الله يعينك', 'ربي يسهل امورك'];
+            const comfortPhrases = ['الله يعينك', 'ربي يفرج همك'];
             const randomComfort = comfortPhrases[Math.floor(Math.random() * comfortPhrases.length)];
             enhanced += ' ' + randomComfort;
-        }
-        
-        // تقصير الرد النهائي
-        if (enhanced.split(' ').length > 15) {
-            const words = enhanced.split(' ');
-            enhanced = words.slice(0, 12).join(' ') + '...';
         }
         
         return enhanced;
@@ -623,10 +618,10 @@ class SmartSecretary {
 
     getTimeAppropriateGreeting() {
         const hour = new Date().getHours();
-        if (hour >= 5 && hour < 12) return 'صباح الخير';
-        if (hour >= 12 && hour < 17) return 'مساء النور';
-        if (hour >= 17 && hour < 21) return 'مساء الخير';
-        return 'مساء الليل';
+        if (hour >= 5 && hour < 12) return 'صباح الخير 🌅';
+        if (hour >= 12 && hour < 17) return 'مساء النور ☀️';
+        if (hour >= 17 && hour < 21) return 'مساء الخير 🌆';
+        return 'مساء الليل 🌙';
     }
 
     getTimeOfDay() {
@@ -661,9 +656,9 @@ class SmartSecretary {
 
     getNaturalFallbackResponse(pushName, originalText) {
         const fallbacks = [
-            `آسف ${pushName}`,
-            `${pushName} وش؟`,
-            `ياخوي ${pushName}، مرة ثانية`,
+            `آسف ${pushName}، شوي مشغول. وش كانت تقول؟`,
+            `${pushName} والله ما قدرت افهم بالضبط، تقدر تعيد؟`,
+            `ياخوي ${pushName}، شكلي مو فاهمك صح. قلي مره ثانيه`,
         ];
         return fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }
@@ -680,7 +675,7 @@ class SmartSecretary {
             profile.knownTopics.clear();
         }
         
-        return `تم مسح الذاكرة`;
+        return `تم مسح ذاكرة المحادثة مع ${profile?.name || 'المستخدم'}`;
     }
 }
 
