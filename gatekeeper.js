@@ -1,4 +1,4 @@
-// gatekeeper.js - النسخة المصححة والمطورة (ملف واحد كامل)
+// gatekeeper.js - النسخة النهائية المصححة مع سحب الأسماء من جهات الاتصال
 const pendingPermissions = new Map();
 const activeSessions = new Map();
 
@@ -7,8 +7,9 @@ class Gatekeeper {
         this.timeoutLimit = 35000;
         this.sessionDuration = 10 * 60 * 1000;
         this.lastRequestJid = null;
-        this.sock = null; // سنخزن كائن sock هنا
-        this.ownerJid = null; // سنخزن JID المالك هنا
+        this.sock = null;
+        this.ownerJid = null;
+        this.contactsCache = new Map();
     }
 
     // تهيئة الـ Gatekeeper عند بدء البوت
@@ -16,31 +17,65 @@ class Gatekeeper {
         this.sock = sock;
         this.ownerJid = ownerJid;
         console.log('✅ Gatekeeper جاهز للعمل');
+        
+        // تحديث كاش جهات الاتصال عند التهيئة
+        this.updateContactsCache();
+    }
+
+    // تحديث كاش جهات الاتصال
+    updateContactsCache() {
+        if (!this.sock) return;
+        
+        try {
+            if (this.sock.contacts) {
+                for (const [jid, contact] of Object.entries(this.sock.contacts)) {
+                    if (contact && contact.name) {
+                        this.contactsCache.set(jid, contact.name);
+                    }
+                }
+                console.log(`✅ تم تحديث كاش جهات الاتصال: ${this.contactsCache.size} جهة اتصال`);
+            }
+        } catch (error) {
+            console.error('❌ خطأ في تحديث كاش الجهات:', error);
+        }
     }
 
     // دالة محسنة لجلب الاسم من جهات الاتصال
-    async getSavedName(jid) {
+    async getContactName(jid) {
         try {
-            if (!this.sock) return null;
+            if (!jid) return null;
             
-            // المحاولة الأولى: من خلال دالة getContactById
-            if (this.sock.getContactById) {
+            // 1. التحقق من الكاش أولاً
+            if (this.contactsCache.has(jid)) {
+                return this.contactsCache.get(jid).trim();
+            }
+            
+            // 2. المحاولة مع دالة الاتصال الخاصة بالبوت
+            if (this.sock && typeof this.sock.getContact === 'function') {
                 try {
-                    const contact = await this.sock.getContactById(jid);
-                    if (contact?.name?.trim()) return contact.name.trim();
-                    if (contact?.notify?.trim()) return contact.notify.trim();
-                    if (contact?.verifiedName?.trim()) return contact.verifiedName.trim();
+                    const contact = await this.sock.getContact(jid);
+                    if (contact && contact.name) {
+                        const name = contact.name.trim();
+                        if (name) {
+                            this.contactsCache.set(jid, name);
+                            return name;
+                        }
+                    }
                 } catch (error) {
-                    console.log('⚠️ استخدام الطريقة الثانية لجلب الاسم');
+                    console.log('⚠️ استخدام الطريقة البديلة لجلب الاسم');
                 }
             }
             
-            // المحاولة الثانية: من مخزن جهات الاتصال
-            if (this.sock.contacts && this.sock.contacts[jid]) {
+            // 3. المحاولة من خلال جهات الاتصال المباشرة
+            if (this.sock && this.sock.contacts) {
                 const contact = this.sock.contacts[jid];
-                if (contact?.name?.trim()) return contact.name.trim();
-                if (contact?.notify?.trim()) return contact.notify.trim();
-                if (contact?.verifiedName?.trim()) return contact.verifiedName.trim();
+                if (contact && contact.name) {
+                    const name = contact.name.trim();
+                    if (name) {
+                        this.contactsCache.set(jid, name);
+                        return name;
+                    }
+                }
             }
             
             return null;
@@ -51,12 +86,10 @@ class Gatekeeper {
     }
 
     async handleEverything(jid, pushName, text) {
-        // تجاهل الرسائل من المالك أو المجموعات
         if (jid === this.ownerJid || jid.includes('@g.us')) {
             return { status: 'PROCEED' };
         }
 
-        // التحقق من الجلسة النشطة
         const now = Date.now();
         if (activeSessions.has(jid)) {
             const sessionData = activeSessions.get(jid);
@@ -67,20 +100,16 @@ class Gatekeeper {
             }
         }
 
-        // إذا كان هناك طلب معلق بالفعل
         if (pendingPermissions.has(jid)) {
             return { status: 'WAITING' };
         }
 
-        // حفظ الطلب الحالي
         this.lastRequestJid = jid;
         
-        // جلب الاسم الحقيقي
-        const savedName = await this.getSavedName(jid);
+        const savedName = await this.getContactName(jid);
         const displayName = savedName ? savedName : pushName || jid.split('@')[0];
         const nameStatus = savedName ? '✅ مسجل في جهات الاتصال' : '⚠️ غير مسجل';
         
-        // إرسال طلب الإذن للمالك
         const requestMsg = `🔔 *طلب إذن وصول*\n\n` +
                          `👤 *الاسم:* ${displayName}\n` +
                          `📊 *الحالة:* ${nameStatus}\n` +
@@ -93,15 +122,14 @@ class Gatekeeper {
 
         await this.sock.sendMessage(this.ownerJid, { text: requestMsg });
 
-        // انتظار القرار
         return new Promise((resolve) => {
             const timer = setTimeout(() => {
                 if (pendingPermissions.has(jid)) {
                     pendingPermissions.delete(jid);
-                    // السماح تلقائياً
                     activeSessions.set(jid, { 
                         timestamp: Date.now(),
-                        autoApproved: true 
+                        autoApproved: true,
+                        userName: displayName
                     });
                     resolve({ status: 'PROCEED', autoApproved: true });
                 }
@@ -119,9 +147,7 @@ class Gatekeeper {
     handleOwnerDecision(text) {
         const decision = text.trim().toLowerCase();
         
-        // التحقق من جميع أشكال "نعم"
         const isYes = ['نعم', 'yes', 'y', '✅', '✔', '👍', 'موافق', 'قبول', 'ok', 'okay', 'اوك', 'ن', 'yeah', 'yea'].includes(decision);
-        // التحقق من جميع أشكال "لا"
         const isNo = ['لا', 'no', 'n', '❌', '✖', '👎', 'رفض', 'منع', 'مرفوض', 'block', 'ل', 'nope', 'nah'].includes(decision);
         
         if ((isYes || isNo) && this.lastRequestJid) {
@@ -133,21 +159,18 @@ class Gatekeeper {
                 pendingPermissions.delete(targetJid);
                 
                 if (isYes) {
-                    // السماح
                     activeSessions.set(targetJid, { 
                         timestamp: Date.now(),
                         approvedBy: this.ownerJid,
                         userName: displayName
                     });
                     
-                    // إرسال تأكيد للمالك
                     this.sock.sendMessage(this.ownerJid, { 
                         text: `✅ *تم السماح*\n\n👤 ${displayName}\n📱 ${targetJid.split('@')[0]}\n⏰ لمدة 10 دقائق` 
                     }).catch(() => {});
                     
                     resolve({ status: 'PROCEED', ownerApproved: true });
                 } else {
-                    // منع
                     this.sock.sendMessage(this.ownerJid, { 
                         text: `❌ *تم المنع*\n\n👤 ${displayName}\n📱 ${targetJid.split('@')[0]}\n\nلن يتمكن من إرسال رسائل.` 
                     }).catch(() => {});
@@ -163,7 +186,6 @@ class Gatekeeper {
         return false;
     }
     
-    // دالة مساعدة للتحقق
     getSessionInfo(jid) {
         if (activeSessions.has(jid)) {
             const session = activeSessions.get(jid);
@@ -176,8 +198,12 @@ class Gatekeeper {
         }
         return { active: false };
     }
+    
+    async getNameForResponse(jid, pushName) {
+        const savedName = await this.getContactName(jid);
+        return savedName ? savedName : pushName || 'صديقي';
+    }
 }
 
-// إنشاء نسخة واحدة فقط من Gatekeeper
 const gatekeeper = new Gatekeeper();
 module.exports = gatekeeper;
