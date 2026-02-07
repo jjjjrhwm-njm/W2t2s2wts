@@ -823,4 +823,10 @@ class SmartSecretary {
 const smartSecretary = new SmartSecretary();
 
 async function getAIResponse(jid, text, pushName) {
-    return await smartSecretary.getAIResponse(jid, text,
+    return await smartSecretary.getAIResponse(jid, text, pushName);
+}
+
+module.exports = { 
+    getAIResponse,
+    smartSecretary
+};
