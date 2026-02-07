@@ -18,11 +18,11 @@ class SmartSecretary {
         // تفضيلات الرد البشرية
         this.humanResponseConfig = {
             typingVariations: [800, 1200, 1800, 2500],
-            responseLength: 'medium',
-            emotionLevel: 'warm',
-            formality: 'casual',
-            humorLevel: 'subtle',
-            empathyLevel: 'high'
+            responseLength: 'short',
+            emotionLevel: 'neutral',
+            formality: 'professional',
+            humorLevel: 'none',
+            empathyLevel: 'medium'
         };
     }
 
@@ -234,7 +234,7 @@ class SmartSecretary {
             warmth: 'medium',
             humor: 'subtle',
             empathy: 'medium',
-            length: 'medium'
+            length: 'short'
         };
         
         // تحديد نمط الرد بناءً على النية
@@ -242,9 +242,13 @@ class SmartSecretary {
             personality.tone = 'serious';
             personality.formality = 'polite';
             personality.length = 'medium';
-        } else if (intent === 'question' || intent === 'request') {
+        } else if (intent === 'question') {
             personality.tone = 'helpful';
             personality.formality = 'casual';
+            personality.length = 'medium';
+        } else if (intent === 'request') {
+            personality.tone = 'helpful';
+            personality.formality = 'polite';
             personality.length = 'medium';
         } else if (intent === 'greeting') {
             personality.tone = 'welcoming';
@@ -256,7 +260,7 @@ class SmartSecretary {
         } else if (intent === 'smalltalk' || intent === 'joke') {
             personality.tone = 'conversational';
             personality.humor = 'moderate';
-            personality.length = 'medium';
+            personality.length = 'short';
         } else if (intent === 'thanks') {
             personality.tone = 'grateful';
             personality.warmth = 'high';
@@ -271,18 +275,16 @@ class SmartSecretary {
         switch(userMood) {
             case 'happy':
                 personality.tone = 'cheerful';
-                personality.humor = 'moderate';
                 personality.warmth = 'high';
+                personality.humor = 'moderate';
                 break;
             case 'sad':
                 personality.tone = 'comforting';
                 personality.empathy = 'high';
-                personality.humor = 'none';
                 break;
             case 'angry':
                 personality.tone = 'calm';
                 personality.formality = 'polite';
-                personality.humor = 'none';
                 break;
             case 'excited':
                 personality.tone = 'enthusiastic';
@@ -358,99 +360,77 @@ class SmartSecretary {
     }
 
     getFallbackResponse(pushName, text, personality) {
-        const fallbackResponses = {
-            greeting: `أهلاً وسهلاً فيك يا ${pushName} 
-الراشد مشغول حالياً بس راح أوصل له رسالتك`,
-            
-            question: `سؤال حلو يا ${pushName} 
-بس الراشد مشغول حالياً 
-راح أوصل سؤالك له وأخبرك إذا رد`,
-            
-            request: `يا هلا ${pushName} 
-طلبك وصل وتم، راح أوصله للراشد أول ما يقدر`,
-            
-            important: `حاضر يا ${pushName} 
-الموضوع واضح إنه مهم 
-راح أوصله للراشد فوراً`,
-            
-            business: `تم تم يا ${pushName} 
-موضوع العمل وصل وراح أوصله للراشد بدقة`,
-            
-            checking: `والله الراشد الحين في شغل مهم يا ${pushName} 
-بس أنا موجود وأوصل له أي شي تبغاه`,
-            
-            smalltalk: `هلا والله ${pushName} 
-الراشد مشغول بس أنا فاضي أسمعك`,
-            
-            default: `يا هلا فيك ${pushName} 
-الراشد مشغول حالياً بس راح أوصل له رسالتك`
-        };
-
         const intent = this.detectUserIntent(text);
-        return fallbackResponses[intent] || fallbackResponses.default;
+        
+        const fallbacks = {
+            'greeting': `أهلاً فيك ${pushName}! كيف الحال؟`,
+            'question': `شكلك تبغى تعرف شي عن الراشد! هو مشغول حالياً`,
+            'request': `حاضر يا ${pushName}، راح أبلغ الراشد عن طلبك`,
+            'important': `أكيد مهم! راح أقول للراشد إنك تبي تشوفه`,
+            'business': `تم، راح أعلم الراشد بالموضوع`,
+            'checking': `الراشد مشغول في شغله الحين`,
+            'smalltalk': `هلا والله ${pushName}!
+الراشد مشغول بس أنا موجود`,
+            'default': `يا هلا ${pushName}! الراشد مشغول حالياً`
+        };
+        
+        return fallbacks[intent] || fallbacks.default;
     }
 
     createHumanSystemPrompt(pushName, personality, context, userText) {
         const timeGreeting = this.getTimeAppropriateGreeting();
         const intent = this.detectUserIntent(userText);
-        const relationship = context.relationshipLevel;
         
-        let prompt = `أنت مساعد الراشد. مهمتك ترد على الناس لما الراشد مشغول.`;
-        prompt += `\n\n**أنت إنسان طبيعي مو آلة:**`;
+        let prompt = `أنت مساعد الراشد. مهمتك تتعامل مع الناس لما الراشد مشغول.`;
+        prompt += `\n\n**أنت إنسان طبيعي:**`;
         prompt += `\n- تتكلم مثل البشر تماماً`;
-        prompt += `\n- عندك شخصية ودودة ومرحة شوي`;
-        prompt += `\n- تتفاعل مع الناس وتشاركهم`;
-        prompt += `\n- ما تكون حجر ولا آلة صماء`;
-        prompt += `\n- تكون لين في التعامل ولكن مركز على مهمتك`;
+        prompt += `\n- عندك ذكاء ودعابة خفيفة`;
+        prompt += `\n- ترد ردود قصيرة وبشرية`;
+        prompt += `\n- مرّح ومحبب في التعامل`;
+        prompt += `\n- تفهم وتجاوب بذكاء`;
         
-        prompt += `\n\n**دورك الأساسي:**`;
-        prompt += `\n1. الراشد مشغول في شغله المهم`;
-        prompt += `\n2. أنت مساعده وتوصل رسائل الناس له`;
-        prompt += `\n3. تتعامل مع الناس بلطف وتفهم ظروفهم`;
-        prompt += `\n4. تكون إنسان يتفاعل ويتجاوب`;
-        prompt += `\n5. تجاوب على الأسئلة بذكاء`;
+        prompt += `\n\n**مهمتك الأساسية:**`;
+        prompt += `\n1. الرد على الناس لما يسألون عن الراشد`;
+        prompt += `\n2. توصيل الرسائل المهمة للراشد`;
+        prompt += `\n3. التفاعل مع الناس بطبيعية وحبوبة`;
+        prompt += `\n4. إعطاء ردود ذكية على الأسئلة عن الراشد`;
+        prompt += `\n5. التركيز على العمل عند الحاجة فقط`;
         
-        prompt += `\n\n**علاقتك مع ${pushName}:**`;
-        switch(relationship) {
-            case 'new':
-                prompt += `\n- أنت أول مرة تتكلم معه، كن لطيف وودود`;
-                break;
-            case 'familiar':
-                prompt += `\n- تعرفه من قبل، كلمه بطريقة ودودة`;
-                break;
-            case 'close':
-                prompt += `\n- قريب منك، خذ وخلّي معه بطبيعة`;
-                break;
-            case 'trusted':
-                prompt += `\n- صديق مقرب، عادي تكلمه بأريحية`;
-                break;
-        }
+        prompt += `\n\n**متى تستخدم "راح أوصل رسالتك":**`;
+        prompt += `\n- فقط إذا طلبوا شي يخص الراشد مباشرة`;
+        prompt += `\n- إذا كان الموضوع مهم أو عمل`;
+        prompt += `\n- إذا طلبوا من الراشد شي خاص`;
+        
+        prompt += `\n\n**متى تتفاعل عادي:**`;
+        prompt += `\n- إذا سلموا أو سألوا عن الراشد`;
+        prompt += `\n- إذا كانوا يتكلمون عادي`;
+        prompt += `\n- إذا كان سؤال عام عن الراشد`;
+        prompt += `\n- إذا كان كلام ودّي أو مرح`;
         
         prompt += `\n\n**أسلوب ردك:**`;
-        prompt += `\n- تكون إنسان يتفاعل ويأخذ ويعطي`;
-        prompt += `\n- التركيز الأكبر على توصيل الرسائل للراشد`;
-        prompt += `\n- ترد على الأسئلة بذكاء ولباقة`;
-        prompt += `\n- تكون لين ولكن لا تطيل في الحديث`;
-        prompt += `\n- الردود مختصرة لكن مليئة بالحياة`;
+        prompt += `\n- الردود قصيرة ومحبوبة`;
+        prompt += `\n- اللهجة سعودية بشرية طبيعية`;
         prompt += `\n- بدون إيموجي إلا نادراً جداً`;
+        prompt += `\n- عربي صافي بدون كلمات أجنبية`;
+        prompt += `\n- ذكي في الرد على الأسئلة`;
         
-        prompt += `\n\n**تحدث بالعربية الصافية فقط:**`;
-        prompt += `\n- لا تستخدم أي كلمات أجنبية`;
-        prompt += `\n- كل الكلمات تكون عربية فصحى أو لهجة سعودية`;
-        prompt += `\n- إذا جاءتك كلمة أجنبية، حولها للعربية`;
+        prompt += `\n\n**أمثلة للردود الذكية:**`;
+        prompt += `\n- إذا سأل "وين الراشد؟": "مشغول في شغله الحين"`;
+        prompt += `\n- إذا سأل "وش سوى الراشد؟": "والله في دوامه ومشغول"`;
+        prompt += `\n- إذا سلم: "أهلاً فيك! الراشد مشغول بس أنا موجود"`;
+        prompt += `\n- إذا طلب شي مهم: "حاضر، راح أبلغ الراشد عن طلبك"`;
+        prompt += `\n- إذا تكلم عادي: "هلا والله! شلونك؟"`;
         
-        prompt += `\n\n**أمثلة لردودك الطبيعية:**`;
-        prompt += `\n- "أهلاً وسهلاً فيك يا ${pushName}، الراشد مشغول حالياً بس راح أوصل له رسالتك"`;
-        prompt += `\n- "سؤال حلو، الراشد مشغول بس راح أوصل سؤالك له وأخبرك إذا رد"`;
-        prompt += `\n- "يا هلا فيك، طلبك وصل وراح أوصله للراشد أول ما يقدر"`;
-        prompt += `\n- "حاضر، الموضوع مهم وراح أوصله للراشد فوراً"`;
-        prompt += `\n- "الراشد في شغل مهم حالياً، بس أنا موجود أوصل له أي شي"`;
+        prompt += `\n\n**لا تكرر "راح أوصل رسالتك" لكل شي:**`;
+        prompt += `\n- ❌ خطأ: لكل كلمة تقول "راح أوصل رسالتك"`;
+        prompt += `\n- ✅ صح: تفاعل طبيعي مع الكلام العادي`;
+        prompt += `\n- ✅ صح: "راح أوصل" فقط للمواضيع المهمة`;
+        prompt += `\n- ✅ صح: جاوب بذكاء على الأسئلة عن الراشد`;
         
-        prompt += `\n\n**كيف تجاوب على أسئلة عن الراشد:**`;
-        prompt += `\n- إذا سألوا وش سوى الراشد: "والله في شغل مهم حالياً"`;
-        prompt += `\n- إذا سألوا وين الراشد: "مشغول في عمله الحين"`;
-        prompt += `\n- إذا سألوا متى بيرد: "أول ما يقدر راح يرد عليك"`;
-        prompt += `\n- إذا سألوا عن حاله: "الحمدلله تمام، بس مشغول"`;
+        prompt += `\n\n**المعلومات:**`;
+        prompt += `\n- المستخدم: ${pushName}`;
+        prompt += `\n- الوقت: ${timeGreeting}`;
+        prompt += `\n- نوع الرسالة: ${intent}`;
         
         if (context.conversationHistory.length > 0) {
             prompt += `\n\n**المحادثة الأخيرة:**`;
@@ -462,14 +442,14 @@ class SmartSecretary {
         prompt += `\n\n**الرسالة الجديدة من ${pushName}:**`;
         prompt += `\n"${userText}"`;
         
-        prompt += `\n\n**الآن ارد على ${pushName} بطريقة:**`;
-        prompt += `\n1. كن إنسان يتفاعل ويتجاوب`;
-        prompt += `\n2. ركز على توصيل الرسالة للراشد`;
-        prompt += `\n3. جاوب بذكاء إذا كان فيه سؤال`;
-        prompt += `\n4. خذ واعطي لكن بدون إطالة`;
-        prompt += `\n5. تحدث بالعربية الصافية فقط`;
-        prompt += `\n6. بدون إيموجي إلا إذا كان ضروري جداً`;
-        prompt += `\n7. تذكر: أنت مساعد الراشد، مو هو!`;
+        prompt += `\n\n**الآن رد على ${pushName} بطريقة:**`;
+        prompt += `\n1. كن إنسان طبيعي وذكي`;
+        prompt += `\n2. ركز على العمل إذا طلبوا شي مهم من الراشد`;
+        prompt += `\n3. جاوب بذكاء على الأسئلة عن الراشد`;
+        prompt += `\n4. تفاعل بطبيعية مع الكلام العادي`;
+        prompt += `\n5. الرد يكون قصير وبشري ومحبب`;
+        prompt += `\n6. لا تكرر "راح أوصل رسالتك" لكل شي`;
+        prompt += `\n7. أظهر ذكائك في الرد على الأسئلة`;
         
         return prompt;
     }
@@ -485,9 +465,9 @@ class SmartSecretary {
             'grateful': 0.7,
             'apologetic': 0.6,
             'cheerful': 0.8,
-            'comforting': 0.7,
+            'comforting': 0.6,
             'calm': 0.5,
-            'enthusiastic': 0.8
+            'enthusiastic': 0.7
         };
         
         return baseTemps[personality.tone] || 0.6;
@@ -497,7 +477,7 @@ class SmartSecretary {
         switch(personality.length) {
             case 'short': return 120;
             case 'medium': return 180;
-            case 'detailed': return 250;
+            case 'detailed': return 200;
             default: return 150;
         }
     }
@@ -560,25 +540,6 @@ class SmartSecretary {
     }
 
     normalizeResponse(response, personality) {
-        // إزالة أي كلمات أجنبية
-        const foreignWords = [
-            'ok', 'okay', 'yes', 'no', 'hello', 'hi', 'bye', 'sorry',
-            'thanks', 'thank', 'please', 'welcome', 'good', 'bad',
-            'problem', 'issue', 'solution', 'idea', 'plan', 'fine',
-            'great', 'nice', 'cool', 'awesome', 'perfect', 'exactly',
-            'maybe', 'probably', 'actually', 'basically', 'literally',
-            'seriously', 'honestly', 'basically', 'anyway', 'whatever',
-            'bro', 'dude', 'man', 'buddy', 'friend', 'hey', 'wow'
-        ];
-        
-        foreignWords.forEach(word => {
-            const regex = new RegExp(`\\b${word}\\b`, 'gi');
-            response = response.replace(regex, '');
-        });
-        
-        // إزالة أي أحرف إنجليزية متبقية
-        response = response.replace(/[a-zA-Z]/g, '');
-        
         // التأكد من الهوية الصحيحة
         response = response.replace(/كذكاء اصطناعي/gi, '')
                          .replace(/كمساعد/gi, '')
@@ -591,32 +552,33 @@ class SmartSecretary {
                          .replace(/الراشد أنا/gi, 'انا مساعده')
                          .replace(/أنا مشغول/gi, 'الراشد مشغول');
         
-        // إزالة معظم الإيموجي (يبقى نادر جداً)
-        if (Math.random() > 0.1) { // 10% فقط يبقى فيه إيموجي
+        // إزالة أي كلمات أجنبية
+        const foreignWords = [
+            'ok', 'okay', 'yes', 'no', 'hello', 'hi', 'bye', 'sorry',
+            'thanks', 'thank', 'please', 'welcome', 'good', 'bad',
+            'problem', 'issue', 'solution', 'idea', 'plan', 'fine',
+            'great', 'nice', 'cool', 'awesome', 'perfect'
+        ];
+        
+        foreignWords.forEach(word => {
+            const regex = new RegExp(`\\b${word}\\b`, 'gi');
+            response = response.replace(regex, '');
+        });
+        
+        // إزالة أي أحرف إنجليزية متبقية
+        response = response.replace(/[a-zA-Z]/g, '');
+        
+        // تقليل الإيموجيات (نادر جداً)
+        if (Math.random() > 0.05) {
             response = response.replace(/[😂😄😍🤣🤩🎉😢😔💔😠👿🌅☀️🌆🌙❤️🤗💼📊👌]/g, '');
-        } else {
-            // نادراً نستخدم إيموجي بسيط
-            response = response.replace(/[😂😄😍🤣🤩🎉😢😔💔😠👿]/g, '');
         }
         
         // تطبيع اللهجة
         response = this.normalizeDialect(response);
         
-        // إضافة عبارات التأكيد على التوصيل إذا لم تكن موجودة
-        if (!response.includes('راح أوصل') && !response.includes('راح أوصله')) {
-            const deliveryPhrases = [
-                'راح أوصل له',
-                'راح أوصله',
-                'راح أخبره',
-                'راح أوصل رسالتك'
-            ];
-            const randomPhrase = deliveryPhrases[Math.floor(Math.random() * deliveryPhrases.length)];
-            response = response + ' ' + randomPhrase;
-        }
-        
         // تقصير الرد إذا كان طويلاً
-        if (response.length > 250) {
-            response = response.substring(0, 230) + '...';
+        if (response.length > 200) {
+            response = response.substring(0, 180);
         }
         
         return response.trim();
@@ -645,51 +607,11 @@ class SmartSecretary {
             'سأقوم': 'راح',
             'أقوم': 'راح',
             'سأخبر': 'راح أخبر',
-            'سأوصل': 'راح أوصل',
-            'نحن': 'احنا',
-            'أنت': 'انت',
-            'هو': 'هو',
-            'هي': 'هي',
-            'هم': 'هم',
-            'هل': 'هل',
-            'ما': 'وش',
-            'هذا': 'هذا',
-            'هذه': 'هذي',
-            'ذلك': 'ذاك',
-            'تلك': 'تلك',
-            'أيضاً': 'كمان',
-            'جدا': 'مره',
-            'كثير': 'مره',
-            'قليلاً': 'شوي',
-            'ربما': 'يمكن',
-            'بإمكان': 'تقدر',
-            'يستطيع': 'يقدر',
-            'عندما': 'لما',
-            'لأن': 'عشان',
-            'إذا': 'اذا',
-            'لكن': 'بس',
-            'أي': 'اي',
-            'كل': 'كل',
-            'بعض': 'بعض',
-            'أول': 'أول',
-            'آخر': 'آخر',
-            'جديد': 'جديد',
-            'قديم': 'قديم',
-            'كبير': 'كبير',
-            'صغير': 'صغير',
-            'طويل': 'طويل',
-            'قصير': 'قصير',
-            'سهل': 'سهل',
-            'صعب': 'صعب',
-            'جميل': 'حلو',
-            'قبيح': 'قبيح',
-            'سعيد': 'فرحان',
-            'حزين': 'زعلان'
+            'سأوصل': 'راح أوصل'
         };
         
         Object.entries(dialectMap).forEach(([fusha, ammiya]) => {
-            const regex = new RegExp(`\\b${fusha}\\b`, 'gi');
-            normalized = normalized.replace(regex, ammiya);
+            normalized = normalized.replace(new RegExp(fusha, 'gi'), ammiya);
         });
         
         return normalized;
@@ -712,45 +634,21 @@ class SmartSecretary {
     enhanceHumanTouch(response, userMood, conversationDepth) {
         let enhanced = response;
         
-        // إضافة التردد البشري
-        if (conversationDepth > 2 && Math.random() > 0.5) {
-            const humanHesitations = ['...', 'يعني', 'تقريباً', 'يمكن', 'أشوف'];
-            const randomHesitation = humanHesitations[Math.floor(Math.random() * humanHesitations.length)];
-            const words = enhanced.split(' ');
-            if (words.length > 4) {
-                const insertIndex = Math.floor(Math.random() * (words.length - 3)) + 1;
-                words.splice(insertIndex, 0, randomHesitation);
-                enhanced = words.join(' ');
-            }
-        }
-        
         // إضافة الاهتمام حسب المزاج
         if (userMood === 'sad') {
-            const comfortPhrases = ['الله يعينك', 'ربي يفرج همك', 'الله يشرح صدرك', 'توكل على الله'];
+            const comfortPhrases = ['الله يعينك', 'ربي يفرج همك'];
             const randomComfort = comfortPhrases[Math.floor(Math.random() * comfortPhrases.length)];
             enhanced += ' ' + randomComfort;
         } else if (userMood === 'happy') {
-            const happyPhrases = ['الله يبارك فيك', 'دام الضحكة', 'ربي يحفظك', 'دام الفرح'];
+            const happyPhrases = ['الله يبارك فيك', 'دام الضحكة'];
             const randomHappy = happyPhrases[Math.floor(Math.random() * happyPhrases.length)];
             enhanced += ' ' + randomHappy;
         }
         
-        // إضافة التفاعل الإنساني للمحادثات الطويلة
-        if (conversationDepth > 5 && Math.random() > 0.6) {
-            const interactivePhrases = [
-                'كيف الحال معاك',
-                'أخبارك إيه',
-                'تذكر شي',
-                'كيف الوضع'
-            ];
-            const randomPhrase = interactivePhrases[Math.floor(Math.random() * interactivePhrases.length)];
-            enhanced += ' ' + randomPhrase;
-        }
-        
-        // التأكد من الاختصار مع الإحساس البشري
-        if (enhanced.split(' ').length > 35) {
+        // التأكد من الاختصار
+        if (enhanced.split(' ').length > 30) {
             const words = enhanced.split(' ');
-            enhanced = words.slice(0, 30).join(' ');
+            enhanced = words.slice(0, 25).join(' ');
         }
         
         return enhanced.trim();
@@ -796,10 +694,10 @@ class SmartSecretary {
 
     getNaturalFallbackResponse(pushName, originalText) {
         const fallbacks = [
-            `أهلاً ${pushName}، الراشد مشغول الحين، راح أوصل له رسالتك`,
-            `تمام ${pushName}، راح أخبر الراشد بالموضوع`,
-            `سأوصل كلامك للراشد، هو مشغول حالياً`,
-            `ان شاء الله راح يوصل للراشد رسالتك يا ${pushName}`
+            `أهلاً ${pushName}! الراشد مشغول حالياً`,
+            `هلا والله ${pushName}! شلونك؟`,
+            `الراشد مشغول في شغله الحين`,
+            `يا هلا ${pushName}! في شي تبي تقوله للراشد؟`
         ];
         return fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }
