@@ -1,56 +1,49 @@
-// gatekeeper.js - النسخة الاحترافية لراشد
+// gatekeeper.js - النسخة الاحترافية لراشد (تحديث 10 دقائق + الأسماء الحقيقية)
 const pendingPermissions = new Map();
+const activeSessions = new Map(); // ذاكرة السماح (لمدة 10 دقائق)
 
 class Gatekeeper {
     constructor() {
-        this.timeoutLimit = 35000; 
-        
-        // 1. القائمة البيضاء: الأرقام اللي تبي البوت يرد عليها "فوراً" بدون ما يستأذنك
-        this.whiteList = [
-            '966554526287', // رقمك أنت (المالك)
-            '966500000000'  // مثال: رقم خويك (عدله لرقم حقيقي)
-        ];
-
-        // 2. القائمة السوداء: أرقام تبي البوت يسحب عليها تماماً ولا يرسل لك حتى تنبيه
-        this.blackList = [
-            '123456789'
-        ];
-
-        this.lastRequestJid = null; 
+        this.timeoutLimit = 35000; // 35 ثانية للرد التلقائي
+        this.sessionDuration = 10 * 60 * 1000; // 10 دقائق بالملي ثانية
+        this.lastRequestJid = null;
     }
 
-    // ميزة حقيقية: فحص الرقم قبل أي إجراء
-    checkIdentity(jid) {
-        const cleanJid = jid.split('@')[0];
-        if (this.blackList.includes(cleanJid)) return 'BLACKLISTED';
-        if (this.whiteList.includes(cleanJid)) return 'WHITELISTED';
-        return 'STRANGER';
+    // ميزة حقيقية: جلب الاسم الذي سجلته أنت في جهات اتصالك
+    getSavedName(jid, sock) {
+        const contact = sock.contacts ? sock.contacts[jid] : null;
+        // إذا وجد اسم مسجل عندك (name) استخدمه، وإلا استخدم الاسم الذي وضعه هو لنفسه
+        return contact?.name || contact?.verifiedName || null;
     }
 
     async handleEverything(jid, pushName, text, sock, ownerJid) {
-        // إذا كان قروب أو المالك، اسمح فوراً
-        if (jid.includes('@g.us') || jid === ownerJid) return { status: 'PROCEED' };
+        if (jid === ownerJid || jid.includes('@g.us')) return { status: 'PROCEED' };
 
-        const identity = this.checkIdentity(jid);
+        // 1. التحقق من "جلسة العشر دقائق"
+        const now = Date.now();
+        if (activeSessions.has(jid)) {
+            const lastAllowed = activeSessions.get(jid);
+            if (now - lastAllowed < this.sessionDuration) {
+                return { status: 'PROCEED' }; // مسموح له، لا يطلب إذن مرة أخرى
+            } else {
+                activeSessions.delete(jid); // انتهت الـ 10 دقائق، اطلب إذن من جديد
+            }
+        }
 
-        // إذا محظور: توقف فوراً
-        if (identity === 'BLACKLISTED') return { status: 'STOP' };
-
-        // إذا في القائمة البيضاء: رد فوراً (هنا ميزة التعرف على الأصدقاء)
-        if (identity === 'WHITELISTED') return { status: 'PROCEED' };
-
-        // إذا في طلب انتظار شغال: انتظر
         if (pendingPermissions.has(jid)) return { status: 'WAITING' };
 
-        this.lastRequestJid = jid; 
+        this.lastRequestJid = jid;
         
-        const requestMsg = `🔔 *طلب إذن (تيك تك)*\n\n` +
-                           `👤 الاسم: ${pushName}\n` +
+        // 2. استخدام الاسم المسجل عندك (إذا وجد)
+        const savedName = this.getSavedName(jid, sock);
+        const displayName = savedName ? `✅ ${savedName} (مسجل عندك)` : `👤 ${pushName} (غير مسجل)`;
+        
+        const requestMsg = `🔔 *إذن سكرتير (تيك تك)*\n\n` +
+                           `📝 الاسم: ${displayName}\n` +
                            `📱 الرقم: ${jid.split('@')[0]}\n` +
-                           `📊 الحالة: ⚠️ رقم غير مضاف للقائمة البيضاء\n` +
                            `💬 الرسالة: "${text}"\n\n` +
-                           `*رد بـ (نعم) للرد، أو (لا) للمنع.*\n` +
-                           `⏳ سأنتظر 35 ثانية للرد تلقائياً.`;
+                           `*رد بـ (نعم) للقبول، أو (لا) للمنع.*\n` +
+                           `⏳ (سأسمح له تلقائياً بعد 35 ثانية إذا لم ترد)`;
 
         await sock.sendMessage(ownerJid, { text: requestMsg });
 
@@ -58,7 +51,8 @@ class Gatekeeper {
             const timer = setTimeout(() => {
                 if (pendingPermissions.has(jid)) {
                     pendingPermissions.delete(jid);
-                    resolve({ status: 'PROCEED' }); 
+                    activeSessions.set(jid, Date.now()); // ابدأ عداد الـ 10 دقائق
+                    resolve({ status: 'PROCEED' });
                 }
             }, this.timeoutLimit);
 
@@ -76,8 +70,13 @@ class Gatekeeper {
                 pendingPermissions.delete(targetJid);
                 this.lastRequestJid = null;
                 
-                // هنا الفرق الحقيقي: لو قلت لا، الحالة STOP ولن يرد البوت أبداً
-                resolve({ status: decision === 'نعم' ? 'PROCEED' : 'STOP' });
+                if (decision === 'نعم') {
+                    activeSessions.set(targetJid, Date.now()); // ابدأ الـ 10 دقائق
+                    resolve({ status: 'PROCEED' });
+                } else {
+                    activeSessions.delete(targetJid); // امسح أي جلسة سابقة
+                    resolve({ status: 'STOP' }); // منع حقيقي
+                }
                 return true;
             }
         }
