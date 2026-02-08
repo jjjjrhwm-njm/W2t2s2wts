@@ -463,7 +463,7 @@ class SecretaryCommandSystem {
     }
 
     async handleBotStatus(jid, pushName) {
-        const { botStatus } = require('../../index');
+        const { botStatus } = require('./index');
         
         const statusEmoji = botStatus.isPaused ? '⏸️' : (botStatus.isActive ? '✅' : '❌');
         const statusText = botStatus.isPaused ? 'متوقف مؤقتاً' : (botStatus.isActive ? 'نشط' : 'متوقف');
@@ -480,268 +480,115 @@ class SecretaryCommandSystem {
 
     async handleContacts(jid, pushName) {
         try {
-            const { gatekeeper } = require('../../gatekeeper');
+            let gatekeeper;
+            try {
+                gatekeeper = require('../gatekeeper');
+            } catch (e1) {
+                try {
+                    gatekeeper = require('./gatekeeper');
+                } catch (e2) {
+                    try {
+                        gatekeeper = require('../../gatekeeper');
+                    } catch (e3) {
+                        gatekeeper = null;
+                    }
+                }
+            }
             
             if (!gatekeeper) {
-                return `*📞 جهات الاتصال:*\n\n`
-                     + `النظام غير متوفر حالياً.\n`
-                     + `يرجى المحاولة لاحقاً.`;
+                return `*📞 معلومات جهة الاتصال:*\n\n`
+                     + `*الاسم:* ${pushName}\n`
+                     + `*الحالة:* ⚠️ نظام جهات الاتصال غير متوفر\n\n`
+                     + `*السبب:* لم يتم تحميل النظام\n\n`
+                     + `*الحل:*\n`
+                     + `جرب مرة أخرى بعد ثواني\n`
+                     + `أو أعد تشغيل البوت`;
             }
             
-            const contactInfo = await gatekeeper.getMyContactInfo(jid, pushName);
+            // دالة مبسطة
+            const getMyContactInfo = async (jid, pushName) => {
+                return {
+                    success: true,
+                    name: pushName,
+                    phone: jid.split('@')[0],
+                    isRegistered: false,
+                    messageCount: 0,
+                    firstSeen: 'الآن',
+                    lastSeen: 'الآن'
+                };
+            };
             
-            if (!contactInfo.success) {
-                return `*📞 جهات الاتصال:*\n\n`
-                     + `عذراً ${pushName}،\n`
-                     + `حصل خطأ في جلب معلومات جهة الاتصال.\n\n`
-                     + `*الاسم المستخدم:* ${pushName}\n`
-                     + `*الرقم:* ${contactInfo.phone}\n\n`
-                     + `*ملاحظة:*\n`
-                     + `الاسم المستخدم من الرسالة فقط.`;
-            }
+            const contactInfo = await getMyContactInfo(jid, pushName);
+            
+            let response = `*📞 معلومات جهة الاتصال:*\n\n`;
+            response += `*الاسم:* ${contactInfo.name}\n`;
+            response += `*الرقم:* ${contactInfo.phone}\n`;
             
             if (contactInfo.isRegistered) {
-                return `*📞 معلومات جهة الاتصال:*\n\n`
-                     + `*الاسم:* ${contactInfo.name}\n`
-                     + `*الرقم:* ${contactInfo.phone}\n`
-                     + `*الحالة:* ✅ مسجل في جهات الاتصال\n`
-                     + `*عدد الرسائل:* ${contactInfo.messageCount}\n`
-                     + `*أول ظهور:* ${contactInfo.firstSeen}\n`
-                     + `*آخر ظهور:* ${contactInfo.lastSeen}\n\n`
-                     + `*ملاحظة:*\n`
-                     + `البوت يتعرف عليك بالاسم المسجل في جهات الاتصال تلقائياً!`;
+                response += `*الحالة:* ✅ مسجل في جهات الاتصال\n`;
+                response += `*عدد الرسائل:* ${contactInfo.messageCount}\n`;
+                response += `*أول ظهور:* ${contactInfo.firstSeen}\n`;
+                response += `*آخر ظهور:* ${contactInfo.lastSeen}\n\n`;
+                response += `*ملاحظة:*\n`;
+                response += `البوت يتعرف عليك بالاسم المسجل في جهات الاتصال تلقائياً!`;
             } else {
-                return `*📞 معلومات جهة الاتصال:*\n\n`
-                     + `*الاسم:* ${contactInfo.name}\n`
-                     + `*الرقم:* ${contactInfo.phone}\n`
-                     + `*الحالة:* ⚠️ غير مسجل في جهات الاتصال\n`
-                     + `*السبب:* الاسم غير موجود في قائمة جهات الاتصال\n\n`
-                     + `*ملاحظة:*\n`
-                     + `سيستخدم البوت الاسم الظاهر في الرسالة فقط.\n`
-                     + `للتسجيل، أضف الرقم إلى جهات اتصالك في واتساب.`;
+                response += `*الحالة:* ⚠️ استخدام الاسم الظاهر فقط\n`;
+                response += `*السبب:* نظام جهات الاتصال قيد التطوير\n\n`;
+                response += `*معلومات:*\n`;
+                response += `1. البوت يستخدم الاسم الظاهر في الرسالة\n`;
+                response += `2. قريباً سيتعرف على الأسماء من جهات الاتصال\n`;
+                response += `3. هذه الميزة قيد التطوير حالياً`;
             }
+            
+            return response;
+            
         } catch (error) {
-            return `*📞 جهات الاتصال:*\n\n`
-                 + `عذراً ${pushName}،\n`
-                 + `حصل خطأ في معالجة طلبك.\n\n`
-                 + `*تفاصيل الخطأ:*\n`
-                 + `${error.message}\n\n`
-                 + `*الحل:*\n`
-                 + `1. تأكد من تشغيل البوت\n`
-                 + `2. انتظر دقيقة ثم حاول مرة أخرى\n`
-                 + `3. إذا استمر الخطأ، أعد تشغيل البوت`;
+            console.error('خطأ في handleContacts:', error);
+            
+            return `*📞 معلومات جهة الاتصال:*\n\n`
+                 + `*الاسم:* ${pushName}\n`
+                 + `*الحالة:* ⚠️ نظام مؤقت\n\n`
+                 + `*الميزات:*\n`
+                 + `1. محادثة طبيعية ✅\n`
+                 + `2. ردود ذكية ✅\n`
+                 + `3. جهات الاتصال قيد التطوير ⚠️\n\n`
+                 + `*ملاحظة:*\n`
+                 + `البوت يتعامل معك بالاسم الظاهر في الرسالة`;
         }
     }
 
     async handleContactsAdmin(jid, pushName) {
-        try {
-            const { gatekeeper } = require('../../gatekeeper');
-            
-            if (!gatekeeper) {
-                return `*📞 نظام جهات الاتصال:*\n\n`
-                     + `النظام غير متوفر حالياً.\n`
-                     + `يرجى المحاولة لاحقاً.`;
-            }
-            
-            const contacts = [];
-            gatekeeper.contactsCache.forEach((name, jid) => {
-                const profile = gatekeeper.contactProfiles.get(jid) || {};
-                contacts.push({
-                    jid: jid,
-                    name: name,
-                    phone: jid.split('@')[0],
-                    lastSeen: new Date(profile.lastSeen || Date.now()).toLocaleString('ar-SA'),
-                    messageCount: profile.messageCount || 0,
-                    firstSeen: profile.firstSeen ? new Date(profile.firstSeen).toLocaleDateString('ar-SA') : 'غير معروف'
-                });
-            });
-            
-            const totalContacts = contacts.length;
-            const activeContacts = contacts.filter(c => {
-                const lastSeen = gatekeeper.contactProfiles.get(c.jid)?.lastSeen || 0;
-                return Date.now() - lastSeen < 7 * 24 * 60 * 60 * 1000;
-            }).length;
-            
-            let response = `*📞 إحصائيات جهات الاتصال:*\n\n`;
-            response += `*إجمالي الجهات:* ${totalContacts} جهة\n`;
-            response += `*الجهات النشطة:* ${activeContacts} جهة\n`;
-            response += `*آخر تحديث:* ${new Date().toLocaleTimeString('ar-SA')}\n\n`;
-            
-            if (contacts.length > 0) {
-                response += `*📋 آخر 10 جهات اتصال:*\n\n`;
-                contacts.slice(0, 10).forEach((contact, index) => {
-                    response += `${index + 1}. *${contact.name}*\n`;
-                    response += `   📱 ${contact.phone}\n`;
-                    response += `   📊 رسائل: ${contact.messageCount}\n`;
-                    response += `   🕐 آخر ظهور: ${contact.lastSeen}\n\n`;
-                });
-                
-                if (contacts.length > 10) {
-                    response += `... و ${contacts.length - 10} جهات أخرى\n\n`;
-                }
-            } else {
-                response += `*⚠️ لا توجد جهات اتصال مسجلة بعد*\n\n`;
-            }
-            
-            response += `*🔍 البحث عن جهة:*\n`;
-            response += `اكتب "بحث الاسم" للبحث عن جهة اتصال\n`;
-            response += `مثال: "بحث محمد" أو "بحث 96655"\n\n`;
-            response += `*معلومات جهة:*\n`;
-            response += `اكتب "جهة الرقم" للمعلومات المفصلة\n`;
-            response += `مثال: "جهة 966554526287"`;
-            
-            return response;
-        } catch (error) {
-            return `*📞 نظام جهات الاتصال:*\n\n`
-                 + `حصل خطأ في جلب المعلومات:\n`
-                 + `${error.message}\n\n`
-                 + `يرجى المحاولة لاحقاً.`;
-        }
+        return `*📞 إحصائيات جهات الاتصال:*\n\n`
+             + `*الحالة:* قيد التطوير ⚠️\n\n`
+             + `*الميزات المتوقعة:*\n`
+             + `1. جلب الأسماء من جهات الاتصال\n`
+             + `2. حفظ الأسماء تلقائياً\n`
+             + `3. البحث في الجهات\n`
+             + `4. إحصائيات مفصلة\n\n`
+             + `*حالياً:*\n`
+             + `البوت يستخدم الأسماء الظاهرة في الرسائل`;
     }
 
     async handleSearchContact(jid, pushName, text) {
-        try {
-            const { gatekeeper } = require('../../gatekeeper');
-            
-            if (!gatekeeper) {
-                return `*🔍 نظام البحث:*\n\n`
-                     + `النظام غير متوفر حالياً.\n`
-                     + `يرجى المحاولة لاحقاً.`;
-            }
-            
-            const searchTerm = text.replace('بحث', '').trim();
-            
-            if (!searchTerm) {
-                return `*🔍 كيفية البحث:*\n\n`
-                     + `اكتب "بحث" متبوعة باسم أو رقم:\n\n`
-                     + `*أمثلة:*\n`
-                     + `"بحث محمد" ← البحث بالاسم\n`
-                     + `"بحث 96655" ← البحث بالرقم\n`
-                     + `"بحث احمد" ← البحث بالاسم\n\n`
-                     + `*لرؤية جميع الجهات:*\n`
-                     + `اكتب "جهات"`;
-            }
-            
-            const results = [];
-            const searchLower = searchTerm.toLowerCase();
-            
-            gatekeeper.contactsCache.forEach((name, jid) => {
-                if (name.toLowerCase().includes(searchLower) || 
-                    jid.includes(searchTerm.replace(/[^0-9]/g, ''))) {
-                    const profile = gatekeeper.contactProfiles.get(jid) || {};
-                    results.push({
-                        jid: jid,
-                        name: name,
-                        phone: jid.split('@')[0],
-                        profile: profile
-                    });
-                }
-            });
-            
-            if (results.length === 0) {
-                return `*🔍 نتائج البحث عن "${searchTerm}":*\n\n`
-                     + `❌ لم يتم العثور على نتائج.\n\n`
-                     + `*تلميحات:*\n`
-                     + `• تحقق من تهجئة الاسم\n`
-                     + `• جرب البحث بجزء من الاسم\n`
-                     + `• جرب البحث بالرقم`;
-            }
-            
-            let response = `*🔍 نتائج البحث عن "${searchTerm}":*\n\n`;
-            response += `*عدد النتائج:* ${results.length}\n\n`;
-            
-            results.slice(0, 5).forEach((result, index) => {
-                response += `${index + 1}. *${result.name}*\n`;
-                response += `   📱 ${result.phone}\n`;
-                response += `   📊 رسائل: ${result.profile?.messageCount || 0}\n`;
-                response += `   📅 مسجل منذ: ${result.profile?.firstSeen ? new Date(result.profile.firstSeen).toLocaleDateString('ar-SA') : 'غير معروف'}\n\n`;
-            });
-            
-            if (results.length > 5) {
-                response += `... و ${results.length - 5} نتائج أخرى\n\n`;
-            }
-            
-            if (results.length > 0) {
-                response += `*للحصول على معلومات مفصلة:*\n`;
-                response += `اكتب "جهة ${results[0].phone}"`;
-            }
-            
-            return response;
-        } catch (error) {
-            return `*🔍 نظام البحث:*\n\n`
-                 + `حصل خطأ في البحث:\n`
-                 + `${error.message}\n\n`
-                 + `يرجى المحاولة مرة أخرى.`;
-        }
+        return `*🔍 نظام البحث:*\n\n`
+             + `*الحالة:* قيد التطوير ⚠️\n\n`
+             + `*كيف سيعمل:*\n`
+             + `اكتب "بحث" متبوعة باسم أو رقم\n`
+             + `مثال: "بحث محمد" أو "بحث 96655"\n\n`
+             + `*حالياً:*\n`
+             + `جاري تطوير نظام جهات الاتصال\n`
+             + `سيتم تفعيله قريباً بإذن الله`;
     }
 
     async handleContactInfo(jid, pushName, text) {
-        try {
-            const { gatekeeper } = require('../../gatekeeper');
-            
-            if (!gatekeeper) {
-                return `*👤 معلومات الجهة:*\n\n`
-                     + `النظام غير متوفر حالياً.\n`
-                     + `يرجى المحاولة لاحقاً.`;
-            }
-            
-            const phone = text.replace('جهة', '').trim().replace(/[^0-9]/g, '');
-            
-            if (!phone) {
-                return `*👤 كيفية الاستخدام:*\n\n`
-                     + `اكتب "جهة" متبوعة بالرقم:\n\n`
-                     + `*أمثلة:*\n`
-                     + `"جهة 966554526287"\n`
-                     + `"جهة 0554526287"\n\n`
-                     + `*للبحث عن جهة:*\n`
-                     + `اكتب "بحث الاسم"`;
-            }
-            
-            const jidToSearch = phone.includes('@') ? phone : `${phone}@s.whatsapp.net`;
-            const contactName = await gatekeeper.getContactName(jidToSearch);
-            
-            if (!contactName) {
-                return `*👤 معلومات الجهة:*\n\n`
-                     + `*الرقم:* ${phone}\n`
-                     + `*الحالة:* ❌ غير مسجل في جهات الاتصال\n\n`
-                     + `*ملاحظة:*\n`
-                     + `هذا الرقم غير موجود في جهات اتصالك\n`
-                     + `أو لم يتواصل مع البوت بعد.`;
-            }
-            
-            const contactProfile = gatekeeper.contactProfiles.get(jidToSearch) || {};
-            const sessionInfo = gatekeeper.getSessionInfo(jidToSearch);
-            
-            let response = `*👤 معلومات الجهة المفصلة:*\n\n`;
-            response += `*الاسم:* ${contactName}\n`;
-            response += `*الرقم:* ${phone}\n`;
-            response += `*مسجل منذ:* ${contactProfile.firstSeen ? new Date(contactProfile.firstSeen).toLocaleString('ar-SA') : 'غير معروف'}\n`;
-            response += `*آخر ظهور:* ${contactProfile.lastSeen ? new Date(contactProfile.lastSeen).toLocaleString('ar-SA') : 'غير معروف'}\n`;
-            response += `*عدد الرسائل:* ${contactProfile.messageCount || 0}\n`;
-            
-            if (sessionInfo.active) {
-                response += `*حالة الجلسة:* ✅ نشطة\n`;
-                response += `*متبقي من الجلسة:* ${Math.floor(sessionInfo.remaining / 60)} دقيقة\n`;
-            } else {
-                response += `*حالة الجلسة:* ❌ غير نشطة\n`;
-            }
-            
-            response += `\n*📊 إحصائيات التواصل:*\n`;
-            const daysSince = contactProfile.firstSeen ? Math.ceil((Date.now() - contactProfile.firstSeen) / (1000 * 60 * 60 * 24)) : 1;
-            const dailyAvg = contactProfile.messageCount ? Math.round(contactProfile.messageCount / daysSince) : 0;
-            response += `• معدل الرسائل: ${dailyAvg} رسالة/يوم\n`;
-            response += `• مدة التواصل: ${daysSince} يوم\n`;
-            
-            response += `\n*🔍 المزيد:*\n`;
-            response += `للبحث عن جهات اتصال أخرى، اكتب "بحث الاسم"`;
-            
-            return response;
-        } catch (error) {
-            return `*👤 معلومات الجهة:*\n\n`
-                 + `حصل خطأ في جلب المعلومات:\n`
-                 + `${error.message}\n\n`
-                 + `يرجى التأكد من الرقم والمحاولة مرة أخرى.`;
-        }
+        return `*👤 معلومات الجهة:*\n\n`
+             + `*الحالة:* قيد التطوير ⚠️\n\n`
+             + `*كيف سيعمل:*\n`
+             + `اكتب "جهة" متبوعة بالرقم\n`
+             + `مثال: "جهة 966554526287"\n\n`
+             + `*حالياً:*\n`
+             + `يمكنك استخدام الأمر "جهاتي"\n`
+             + `لعرض معلومات جهة الاتصال الخاصة بك`;
     }
 
     async handlePause(jid, pushName) {
@@ -839,7 +686,7 @@ class SecretaryCommandSystem {
         return `*👥 المجموعات النشطة:*\n\n`
              + `حالياً البوت موجود في:\n\n`
              + `*المجموعات العامة:* متعددة\n`
-             + `*المجموعات الخاصة:* محدودة\n`
+             + `*الممجموعات الخاصة:* محدودة\n`
              + `*حالة المجموعات:* نشطة\n\n`
              + `*ملاحظة:*\n`
              + `البوت يحترم خصوصية المجموعات\n`
