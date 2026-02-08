@@ -66,27 +66,9 @@ class SmartSecretary {
 
     async enhanceUserProfile(jid, pushName, text) {
         if (!this.userProfiles.has(jid)) {
-            // محاولة جلب الاسم من جهات الاتصال أولاً
-            let finalName = pushName;
-            let isFromContacts = false;
-            
-            try {
-                const { gatekeeper } = require('../../gatekeeper');
-                if (gatekeeper) {
-                    const savedName = await gatekeeper.getContactName(jid);
-                    if (savedName && savedName.trim()) {
-                        finalName = savedName.trim();
-                        isFromContacts = true;
-                        console.log(`✅ استخدم الاسم من جهات الاتصال: ${finalName}`);
-                    }
-                }
-            } catch (error) {
-                console.log('⚠️ استخدام الاسم من الرسالة:', pushName);
-            }
-            
             this.userProfiles.set(jid, {
-                name: finalName,
-                nickname: this.generateNickname(finalName),
+                name: pushName,
+                nickname: this.generateNickname(pushName),
                 joinDate: new Date(),
                 conversationCount: 0,
                 preferredStyle: 'balanced',
@@ -94,9 +76,7 @@ class SmartSecretary {
                 personalityTraits: {},
                 lastActive: new Date(),
                 relationshipLevel: 'new',
-                communicationPattern: 'neutral',
-                isFromContacts: isFromContacts, // معرفة إذا كان الاسم من جهات الاتصال
-                phoneNumber: jid.split('@')[0]
+                communicationPattern: 'neutral'
             });
         }
         
@@ -179,8 +159,7 @@ class SmartSecretary {
             dayOfWeek: this.getDayOfWeek(),
             conversationDepth: history.length,
             lastTopic: history.length > 0 ? this.extractTopic(history[history.length - 1].text) : null,
-            relationshipLevel: profile.relationshipLevel || 'new',
-            isFromContacts: profile.isFromContacts || false
+            relationshipLevel: profile.relationshipLevel || 'new'
         };
     }
 
@@ -194,7 +173,7 @@ class SmartSecretary {
             'sharing': ['حبيت', 'تخيل', 'سمعت', 'شفت', 'جاني', 'صارلي', 'عندي', 'عندنا'],
             'complaint': ['ماعجبني', 'مزعج', 'تعبان', 'زعلان', 'مللت', 'ضاق', 'غاضب', 'منزعج'],
             'thanks': ['شكرا', 'مشكور', 'يعطيك', 'الله', 'تسلم', 'ماقصرت', 'الله يسلمك'],
-            'smalltalk': ['وشسويت', 'شلونك', 'اخبارك', 'وينك', 'وشفاكر', 'ايش تسوي', 'شغلك'],
+            'smalltalk': ['وشسويت', '', 'اخبارك', 'وينك', 'وشفاكر', 'ايش تسوي', 'شغلك'],
             'joke': ['نكته', 'ضحكه', 'طايره', 'تضحك', 'يمزح', 'مزحة', 'تفلسف'],
             'business': ['عمل', 'شغل', 'مشروع', 'صفقة', 'تجاره', 'بزنس', 'قرض', 'استثمار'],
             'important': ['ضروري', 'مهم', 'عاجل', 'اسرع', 'بسرعة', 'الآن', 'الحين'],
@@ -386,7 +365,6 @@ class SmartSecretary {
     createHumanSystemPrompt(pushName, personality, context, userText) {
         const timeGreeting = this.getTimeAppropriateGreeting();
         const intent = this.detectUserIntent(userText);
-        const isFromContacts = context.isFromContacts || false;
         
         let prompt = `أنت مساعد الراشد. مهمتك تتعامل مع الناس لما الراشد مشغول.`;
         prompt += `\n\n**أنت إنسان طبيعي:**`;
@@ -430,14 +408,11 @@ class SmartSecretary {
         prompt += `\n- إذا سأل "وش سوى الراشد؟": "والله في دوامه ومشغول ${pushName}"`;
         prompt += `\n- إذا سلم: "أهلاً فيك ${pushName}! الراشد مشغول بس أنا موجود"`;
         prompt += `\n- إذا طلب شي مهم: "حاضر ${pushName}، راح أبلغ الراشد عن طلبك"`;
-        prompt += `\n- إذا تكلم عادي: "هلا والله ${pushName}! شلونك؟"`;
-        prompt += `\n- إذا سأل عن حالتك: "الحمدلله بخير ${pushName}، وانت شلونك؟"`;
+        prompt += `\n- إذا تكلم عادي: "هلا والله ${pushName}! ؟"`;
+        prompt += `\n- إذا سأل عن حالتك: "الحمدلله بخير ${pushName}، وانت ؟"`;
         
         prompt += `\n\n**تذكر:**`;
         prompt += `\n- ${pushName} هذا اسم المستخدم الحقيقي`;
-        if (isFromContacts) {
-            prompt += `\n- هذا الاسم مسجل في جهات الاتصال`;
-        }
         prompt += `\n- ناديه باسمه دائماً`;
         prompt += `\n- تصرف وكأنك تعرفه شخصياً`;
         prompt += `\n- كن ودوداً ومحبباً في التعامل`;
@@ -450,9 +425,6 @@ class SmartSecretary {
         
         prompt += `\n\n**المعلومات:**`;
         prompt += `\n- المستخدم: ${pushName} (الاسم الحقيقي)`;
-        if (isFromContacts) {
-            prompt += `\n- المصدر: جهات الاتصال ✅`;
-        }
         prompt += `\n- الوقت: ${timeGreeting}`;
         prompt += `\n- نوع الرسالة: ${intent}`;
         
@@ -655,7 +627,7 @@ class SmartSecretary {
     getNaturalFallbackResponse(pushName, originalText) {
         const fallbacks = [
             `أهلاً ${pushName}! الراشد مشغول حالياً`,
-            `هلا والله ${pushName}! شلونك؟`,
+            `هلا والله ${pushName}! ؟`,
             `الراشد مشغول في شغله الحين ${pushName}`,
             `يا هلا ${pushName}! في شي تبي تقوله للراشد؟`
         ];
