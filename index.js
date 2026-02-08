@@ -55,12 +55,14 @@ function setupDirectories() {
         './logs',
         './backups',
         './cache',
-        './temp'
+        './temp',
+        './data'  // ← أضف هذا السطر لمجلد البيانات
     ];
     
     directories.forEach(dir => {
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
+            console.log(`✅ تم إنشاء المجلد: ${dir}`);
         }
     });
 }
@@ -245,6 +247,7 @@ async function startBot() {
                 const ownerJid = process.env.OWNER_NUMBER ? process.env.OWNER_NUMBER + '@s.whatsapp.net' : null;
                 if (ownerJid) {
                     gatekeeper.initialize(sock, ownerJid);
+                    console.log('✅ تم تهيئة نظام جهات الاتصال');
                 }
                 
                 await sendStartupNotification();
@@ -294,11 +297,17 @@ async function sendStartupNotification() {
         await sock.sendMessage(ownerJid, { 
             text: `✅ راشد جاهز لخدمتك يا مطور!\n\n` +
                   `*حالة النظام:* ${botStatus.statusMessage}\n` +
+                  `*نظام جهات الاتصال:* ✅ نشط\n` +
                   `*الأوامر المتاحة:*\n` +
                   `- نجم قف ← إيقاف مؤقت\n` +
                   `- نجم اشتغل ← تشغيل عادي\n` +
                   `- نجم شغل ← تشغيل كامل\n` +
-                  `- نجم حالتي ← عرض الحالة`
+                  `- نجم حالتي ← عرض الحالة\n` +
+                  `- جهات ← إدارة جهات الاتصال\n` +
+                  `- بحث ← البحث في الجهات\n` +
+                  `- جهة ← معلومات جهة محددة\n\n` +
+                  `*ملاحظة:*\n` +
+                  `البوت الآن يتعرف على الأسماء من جهات اتصالك تلقائياً!`
         });
     }
 }
@@ -444,6 +453,13 @@ app.get("/", (req, res) => {
                         border-radius: 10px;
                         margin-top: 20px;
                     }
+                    .feature {
+                        background: rgba(255,255,255,0.1);
+                        padding: 15px;
+                        margin: 10px 0;
+                        border-radius: 10px;
+                        border-right: 5px solid #4CAF50;
+                    }
                 </style>
             </head>
             <body>
@@ -453,12 +469,23 @@ app.get("/", (req, res) => {
                         ✅ البوت متصل الآن
                     </div>
                     <p>حالة البوت: ${botStatus.statusMessage}</p>
+                    
+                    <div class="feature">
+                        <h3>📞 نظام جهات الاتصال الجديد</h3>
+                        <p>✅ يتعرف على الأسماء من جهات اتصالك</p>
+                        <p>✅ يحفظ جميع الأسماء تلقائياً</p>
+                        <p>✅ يدعم البحث في الجهات</p>
+                    </div>
+                    
                     <div class="commands">
                         <h3>📋 أوامر التحكم:</h3>
                         <p><strong>نجم قف</strong> ← إيقاف البوت مؤقتاً</p>
                         <p><strong>نجم اشتغل</strong> ← تشغيل البوت عادي</p>
                         <p><strong>نجم شغل</strong> ← تشغيل البوت كامل</p>
                         <p><strong>نجم حالتي</strong> ← عرض حالة البوت</p>
+                        <p><strong>جهات</strong> ← إدارة جهات الاتصال</p>
+                        <p><strong>بحث</strong> ← البحث في الجهات</p>
+                        <p><strong>جهة</strong> ← معلومات جهة محددة</p>
                     </div>
                 </div>
             </body>
@@ -479,5 +506,6 @@ app.get("/", (req, res) => {
 app.listen(port, () => {
     console.log(`🌐 Server running on port ${port}`);
     console.log(`🤖 Bot Status: ${botStatus.statusMessage}`);
+    console.log(`📞 نظام جهات الاتصال: جاهز للتشغيل`);
     startBot();
 });
