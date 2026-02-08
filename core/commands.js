@@ -2,7 +2,6 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-// نظام متقدم لإدارة الأوامر
 class SecretaryCommandSystem {
     constructor() {
         this.commandRegistry = new Map();
@@ -489,32 +488,48 @@ class SecretaryCommandSystem {
                      + `يرجى المحاولة لاحقاً.`;
             }
             
-            const savedName = await gatekeeper.getContactName(jid);
+            const contactInfo = await gatekeeper.getMyContactInfo(jid, pushName);
             
-            if (savedName) {
+            if (!contactInfo.success) {
                 return `*📞 جهات الاتصال:*\n\n`
-                     + `مرحباً ${savedName} 👋\n\n`
-                     + `✅ *معلومات جهة الاتصال:*\n`
-                     + `- الاسم: ${savedName}\n`
-                     + `- الحالة: مسجل في جهات الاتصال\n`
-                     + `- المصدر: جهات اتصال واتساب\n\n`
+                     + `عذراً ${pushName}،\n`
+                     + `حصل خطأ في جلب معلومات جهة الاتصال.\n\n`
+                     + `*الاسم المستخدم:* ${pushName}\n`
+                     + `*الرقم:* ${contactInfo.phone}\n\n`
+                     + `*ملاحظة:*\n`
+                     + `الاسم المستخدم من الرسالة فقط.`;
+            }
+            
+            if (contactInfo.isRegistered) {
+                return `*📞 معلومات جهة الاتصال:*\n\n`
+                     + `*الاسم:* ${contactInfo.name}\n`
+                     + `*الرقم:* ${contactInfo.phone}\n`
+                     + `*الحالة:* ✅ مسجل في جهات الاتصال\n`
+                     + `*عدد الرسائل:* ${contactInfo.messageCount}\n`
+                     + `*أول ظهور:* ${contactInfo.firstSeen}\n`
+                     + `*آخر ظهور:* ${contactInfo.lastSeen}\n\n`
                      + `*ملاحظة:*\n`
                      + `البوت يتعرف عليك بالاسم المسجل في جهات الاتصال تلقائياً!`;
             } else {
-                return `*📞 جهات الاتصال:*\n\n`
-                     + `مرحباً ${pushName} 👋\n\n`
-                     + `⚠️ *معلومات جهة الاتصال:*\n`
-                     + `- الاسم: ${pushName}\n`
-                     + `- الحالة: غير مسجل في جهات الاتصال\n`
-                     + `- المصدر: اسم المستخدم\n\n`
-                     + `*للمالك:*\n`
-                     + `يمكن للمالك البحث عن جهات الاتصال باستخدام "بحث"`;
+                return `*📞 معلومات جهة الاتصال:*\n\n`
+                     + `*الاسم:* ${contactInfo.name}\n`
+                     + `*الرقم:* ${contactInfo.phone}\n`
+                     + `*الحالة:* ⚠️ غير مسجل في جهات الاتصال\n`
+                     + `*السبب:* الاسم غير موجود في قائمة جهات الاتصال\n\n`
+                     + `*ملاحظة:*\n`
+                     + `سيستخدم البوت الاسم الظاهر في الرسالة فقط.\n`
+                     + `للتسجيل، أضف الرقم إلى جهات اتصالك في واتساب.`;
             }
         } catch (error) {
             return `*📞 جهات الاتصال:*\n\n`
                  + `عذراً ${pushName}،\n`
-                 + `حصل خطأ في جلب معلومات جهة الاتصال.\n\n`
-                 + `الاسم المستخدم: ${pushName}`;
+                 + `حصل خطأ في معالجة طلبك.\n\n`
+                 + `*تفاصيل الخطأ:*\n`
+                 + `${error.message}\n\n`
+                 + `*الحل:*\n`
+                 + `1. تأكد من تشغيل البوت\n`
+                 + `2. انتظر دقيقة ثم حاول مرة أخرى\n`
+                 + `3. إذا استمر الخطأ، أعد تشغيل البوت`;
         }
     }
 
@@ -528,12 +543,28 @@ class SecretaryCommandSystem {
                      + `يرجى المحاولة لاحقاً.`;
             }
             
-            const contacts = gatekeeper.getAllContacts();
-            const stats = gatekeeper.getContactsStats();
+            const contacts = [];
+            gatekeeper.contactsCache.forEach((name, jid) => {
+                const profile = gatekeeper.contactProfiles.get(jid) || {};
+                contacts.push({
+                    jid: jid,
+                    name: name,
+                    phone: jid.split('@')[0],
+                    lastSeen: new Date(profile.lastSeen || Date.now()).toLocaleString('ar-SA'),
+                    messageCount: profile.messageCount || 0,
+                    firstSeen: profile.firstSeen ? new Date(profile.firstSeen).toLocaleDateString('ar-SA') : 'غير معروف'
+                });
+            });
+            
+            const totalContacts = contacts.length;
+            const activeContacts = contacts.filter(c => {
+                const lastSeen = gatekeeper.contactProfiles.get(c.jid)?.lastSeen || 0;
+                return Date.now() - lastSeen < 7 * 24 * 60 * 60 * 1000;
+            }).length;
             
             let response = `*📞 إحصائيات جهات الاتصال:*\n\n`;
-            response += `*إجمالي الجهات:* ${stats.totalContacts} جهة\n`;
-            response += `*الجهات النشطة:* ${stats.activeContacts} جهة\n`;
+            response += `*إجمالي الجهات:* ${totalContacts} جهة\n`;
+            response += `*الجهات النشطة:* ${activeContacts} جهة\n`;
             response += `*آخر تحديث:* ${new Date().toLocaleTimeString('ar-SA')}\n\n`;
             
             if (contacts.length > 0) {
@@ -591,7 +622,21 @@ class SecretaryCommandSystem {
                      + `اكتب "جهات"`;
             }
             
-            const results = await gatekeeper.searchContact(searchTerm);
+            const results = [];
+            const searchLower = searchTerm.toLowerCase();
+            
+            gatekeeper.contactsCache.forEach((name, jid) => {
+                if (name.toLowerCase().includes(searchLower) || 
+                    jid.includes(searchTerm.replace(/[^0-9]/g, ''))) {
+                    const profile = gatekeeper.contactProfiles.get(jid) || {};
+                    results.push({
+                        jid: jid,
+                        name: name,
+                        phone: jid.split('@')[0],
+                        profile: profile
+                    });
+                }
+            });
             
             if (results.length === 0) {
                 return `*🔍 نتائج البحث عن "${searchTerm}":*\n\n`
