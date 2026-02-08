@@ -35,6 +35,7 @@ class SecretaryCommandSystem {
         this.commandRegistry.set('نكته', this.handleJoke.bind(this));
         this.commandRegistry.set('حكمه', this.handleWisdom.bind(this));
         this.commandRegistry.set('حاله', this.handleBotStatus.bind(this));
+        this.commandRegistry.set('جهاتي', this.handleContacts.bind(this));
     }
 
     registerAdminCommands() {
@@ -53,6 +54,9 @@ class SecretaryCommandSystem {
         this.adminRegistry.set('جلسه', this.handleSession.bind(this));
         this.adminRegistry.set('لوج', this.handleLog.bind(this));
         this.adminRegistry.set('ريست', this.handleRestart.bind(this));
+        this.adminRegistry.set('جهات', this.handleContactsAdmin.bind(this));
+        this.adminRegistry.set('بحث', this.handleSearchContact.bind(this));
+        this.adminRegistry.set('جهة', this.handleContactInfo.bind(this));
     }
 
     async handleManualCommand(text, jid, isOwner, pushName) {
@@ -110,7 +114,8 @@ class SecretaryCommandSystem {
         panel += `• *اوقات* - اوقات الصلاة\n`;
         panel += `• *اذكار* - اذكار الصباح والمساء\n`;
         panel += `• *اقتراح* - اقترح لك شي\n`;
-        panel += `• *حظ* - اقرأ حظك\n\n`;
+        panel += `• *حظ* - اقرأ حظك\n`;
+        panel += `• *جهاتي* - جهات الاتصال المحفوظة\n\n`;
         
         panel += `*😊 ترفيه:*\n`;
         panel += `• *نكته* - قل لي نكته\n`;
@@ -124,6 +129,8 @@ class SecretaryCommandSystem {
             panel += `• *فحص* - حالة النظام\n`;
             panel += `• *مستخدمين* - عدد المستخدمين\n`;
             panel += `• *احصائيات* - احصائيات مفصله\n`;
+            panel += `• *جهات* - إدارة جهات الاتصال\n`;
+            panel += `• *بحث* - البحث في الجهات\n`;
             panel += `• *توقف* - اوقف الرد التلقائي\n`;
             panel += `• *كمل* - شغل الرد التلقائي\n`;
             panel += `• *نظف* - نظف الملفات المؤقته\n`;
@@ -156,7 +163,8 @@ class SecretaryCommandSystem {
             'تنظيم': 'ساعدك في المهام والمواعيد',
             'خدمات': 'أوقات الصلاة، أذكار، اقتراحات',
             'ترفيه': 'نكت، حكم، قراءة حظ',
-            'حالة': 'عرض حالة البوت الحالية'
+            'حالة': 'عرض حالة البوت الحالية',
+            'جهات': 'عرض جهات الاتصال المحفوظة'
         };
         
         let response = `*🆘 كيف أستخدم السكرتير:*\n\n`;
@@ -169,7 +177,8 @@ class SecretaryCommandSystem {
         response += `- "وش تسوي" ← أخبرك عن حالي\n`;
         response += `- "حاله" ← حالة البوت الحالية\n`;
         response += `- "ضبط لي تذكير" ← أساعدك بالتذكير\n`;
-        response += `- "عطيني نكته" ← أضحكك شوي\n\n`;
+        response += `- "عطيني نكته" ← أضحكك شوي\n`;
+        response += `- "جهاتي" ← جهات الاتصال المحفوظة\n\n`;
         response += `*تلميح:*\n`;
         response += `ما تحتاج أوامر معقدة، تكلم معاي زي ما تتكلم مع صديقك 👌`;
         
@@ -186,7 +195,8 @@ class SecretaryCommandSystem {
             'إعطاء نكت وحكم مناسبة',
             'قراءة الحظ بطريقة مرحة',
             'تقديم النصائح المفيدة',
-            'عرض حالة البوت الحالية'
+            'عرض حالة البوت الحالية',
+            'التعرف على الأسماء من جهات الاتصال'
         ];
         
         let response = `*🛠️ الأشياء اللي أقدر أسويها:*\n\n`;
@@ -195,7 +205,9 @@ class SecretaryCommandSystem {
             response += `${index + 1}. ${cap}\n`;
         });
         
-        response += `\n*لكن انتبه:*\n`;
+        response += `\n*ميزة خاصة:*\n`;
+        response += `أتعرف على أسمائكم الحقيقية من جهات الاتصال!`;
+        response += `\n\n*لكن انتبه:*\n`;
         response += `ما أقدر:\n`;
         response += `• أتواصل مع أرقام أخرى\n`;
         response += `• أرسل ملفات أو صور\n`;
@@ -467,6 +479,226 @@ class SecretaryCommandSystem {
              + `_البوت يعمل بشكل ${botStatus.isActive ? 'طبيعي' : 'محدود'}_`;
     }
 
+    async handleContacts(jid, pushName) {
+        try {
+            const { gatekeeper } = require('../../gatekeeper');
+            
+            if (!gatekeeper) {
+                return `*📞 جهات الاتصال:*\n\n`
+                     + `النظام غير متوفر حالياً.\n`
+                     + `يرجى المحاولة لاحقاً.`;
+            }
+            
+            const savedName = await gatekeeper.getContactName(jid);
+            
+            if (savedName) {
+                return `*📞 جهات الاتصال:*\n\n`
+                     + `مرحباً ${savedName} 👋\n\n`
+                     + `✅ *معلومات جهة الاتصال:*\n`
+                     + `- الاسم: ${savedName}\n`
+                     + `- الحالة: مسجل في جهات الاتصال\n`
+                     + `- المصدر: جهات اتصال واتساب\n\n`
+                     + `*ملاحظة:*\n`
+                     + `البوت يتعرف عليك بالاسم المسجل في جهات الاتصال تلقائياً!`;
+            } else {
+                return `*📞 جهات الاتصال:*\n\n`
+                     + `مرحباً ${pushName} 👋\n\n`
+                     + `⚠️ *معلومات جهة الاتصال:*\n`
+                     + `- الاسم: ${pushName}\n`
+                     + `- الحالة: غير مسجل في جهات الاتصال\n`
+                     + `- المصدر: اسم المستخدم\n\n`
+                     + `*للمالك:*\n`
+                     + `يمكن للمالك البحث عن جهات الاتصال باستخدام "بحث"`;
+            }
+        } catch (error) {
+            return `*📞 جهات الاتصال:*\n\n`
+                 + `عذراً ${pushName}،\n`
+                 + `حصل خطأ في جلب معلومات جهة الاتصال.\n\n`
+                 + `الاسم المستخدم: ${pushName}`;
+        }
+    }
+
+    async handleContactsAdmin(jid, pushName) {
+        try {
+            const { gatekeeper } = require('../../gatekeeper');
+            
+            if (!gatekeeper) {
+                return `*📞 نظام جهات الاتصال:*\n\n`
+                     + `النظام غير متوفر حالياً.\n`
+                     + `يرجى المحاولة لاحقاً.`;
+            }
+            
+            const contacts = gatekeeper.getAllContacts();
+            const stats = gatekeeper.getContactsStats();
+            
+            let response = `*📞 إحصائيات جهات الاتصال:*\n\n`;
+            response += `*إجمالي الجهات:* ${stats.totalContacts} جهة\n`;
+            response += `*الجهات النشطة:* ${stats.activeContacts} جهة\n`;
+            response += `*آخر تحديث:* ${new Date().toLocaleTimeString('ar-SA')}\n\n`;
+            
+            if (contacts.length > 0) {
+                response += `*📋 آخر 10 جهات اتصال:*\n\n`;
+                contacts.slice(0, 10).forEach((contact, index) => {
+                    response += `${index + 1}. *${contact.name}*\n`;
+                    response += `   📱 ${contact.phone}\n`;
+                    response += `   📊 رسائل: ${contact.messageCount}\n`;
+                    response += `   🕐 آخر ظهور: ${contact.lastSeen}\n\n`;
+                });
+                
+                if (contacts.length > 10) {
+                    response += `... و ${contacts.length - 10} جهات أخرى\n\n`;
+                }
+            } else {
+                response += `*⚠️ لا توجد جهات اتصال مسجلة بعد*\n\n`;
+            }
+            
+            response += `*🔍 البحث عن جهة:*\n`;
+            response += `اكتب "بحث الاسم" للبحث عن جهة اتصال\n`;
+            response += `مثال: "بحث محمد" أو "بحث 96655"\n\n`;
+            response += `*معلومات جهة:*\n`;
+            response += `اكتب "جهة الرقم" للمعلومات المفصلة\n`;
+            response += `مثال: "جهة 966554526287"`;
+            
+            return response;
+        } catch (error) {
+            return `*📞 نظام جهات الاتصال:*\n\n`
+                 + `حصل خطأ في جلب المعلومات:\n`
+                 + `${error.message}\n\n`
+                 + `يرجى المحاولة لاحقاً.`;
+        }
+    }
+
+    async handleSearchContact(jid, pushName, text) {
+        try {
+            const { gatekeeper } = require('../../gatekeeper');
+            
+            if (!gatekeeper) {
+                return `*🔍 نظام البحث:*\n\n`
+                     + `النظام غير متوفر حالياً.\n`
+                     + `يرجى المحاولة لاحقاً.`;
+            }
+            
+            const searchTerm = text.replace('بحث', '').trim();
+            
+            if (!searchTerm) {
+                return `*🔍 كيفية البحث:*\n\n`
+                     + `اكتب "بحث" متبوعة باسم أو رقم:\n\n`
+                     + `*أمثلة:*\n`
+                     + `"بحث محمد" ← البحث بالاسم\n`
+                     + `"بحث 96655" ← البحث بالرقم\n`
+                     + `"بحث احمد" ← البحث بالاسم\n\n`
+                     + `*لرؤية جميع الجهات:*\n`
+                     + `اكتب "جهات"`;
+            }
+            
+            const results = await gatekeeper.searchContact(searchTerm);
+            
+            if (results.length === 0) {
+                return `*🔍 نتائج البحث عن "${searchTerm}":*\n\n`
+                     + `❌ لم يتم العثور على نتائج.\n\n`
+                     + `*تلميحات:*\n`
+                     + `• تحقق من تهجئة الاسم\n`
+                     + `• جرب البحث بجزء من الاسم\n`
+                     + `• جرب البحث بالرقم`;
+            }
+            
+            let response = `*🔍 نتائج البحث عن "${searchTerm}":*\n\n`;
+            response += `*عدد النتائج:* ${results.length}\n\n`;
+            
+            results.slice(0, 5).forEach((result, index) => {
+                response += `${index + 1}. *${result.name}*\n`;
+                response += `   📱 ${result.phone}\n`;
+                response += `   📊 رسائل: ${result.profile?.messageCount || 0}\n`;
+                response += `   📅 مسجل منذ: ${result.profile?.firstSeen ? new Date(result.profile.firstSeen).toLocaleDateString('ar-SA') : 'غير معروف'}\n\n`;
+            });
+            
+            if (results.length > 5) {
+                response += `... و ${results.length - 5} نتائج أخرى\n\n`;
+            }
+            
+            if (results.length > 0) {
+                response += `*للحصول على معلومات مفصلة:*\n`;
+                response += `اكتب "جهة ${results[0].phone}"`;
+            }
+            
+            return response;
+        } catch (error) {
+            return `*🔍 نظام البحث:*\n\n`
+                 + `حصل خطأ في البحث:\n`
+                 + `${error.message}\n\n`
+                 + `يرجى المحاولة مرة أخرى.`;
+        }
+    }
+
+    async handleContactInfo(jid, pushName, text) {
+        try {
+            const { gatekeeper } = require('../../gatekeeper');
+            
+            if (!gatekeeper) {
+                return `*👤 معلومات الجهة:*\n\n`
+                     + `النظام غير متوفر حالياً.\n`
+                     + `يرجى المحاولة لاحقاً.`;
+            }
+            
+            const phone = text.replace('جهة', '').trim().replace(/[^0-9]/g, '');
+            
+            if (!phone) {
+                return `*👤 كيفية الاستخدام:*\n\n`
+                     + `اكتب "جهة" متبوعة بالرقم:\n\n`
+                     + `*أمثلة:*\n`
+                     + `"جهة 966554526287"\n`
+                     + `"جهة 0554526287"\n\n`
+                     + `*للبحث عن جهة:*\n`
+                     + `اكتب "بحث الاسم"`;
+            }
+            
+            const jidToSearch = phone.includes('@') ? phone : `${phone}@s.whatsapp.net`;
+            const contactName = await gatekeeper.getContactName(jidToSearch);
+            
+            if (!contactName) {
+                return `*👤 معلومات الجهة:*\n\n`
+                     + `*الرقم:* ${phone}\n`
+                     + `*الحالة:* ❌ غير مسجل في جهات الاتصال\n\n`
+                     + `*ملاحظة:*\n`
+                     + `هذا الرقم غير موجود في جهات اتصالك\n`
+                     + `أو لم يتواصل مع البوت بعد.`;
+            }
+            
+            const contactProfile = gatekeeper.contactProfiles.get(jidToSearch) || {};
+            const sessionInfo = gatekeeper.getSessionInfo(jidToSearch);
+            
+            let response = `*👤 معلومات الجهة المفصلة:*\n\n`;
+            response += `*الاسم:* ${contactName}\n`;
+            response += `*الرقم:* ${phone}\n`;
+            response += `*مسجل منذ:* ${contactProfile.firstSeen ? new Date(contactProfile.firstSeen).toLocaleString('ar-SA') : 'غير معروف'}\n`;
+            response += `*آخر ظهور:* ${contactProfile.lastSeen ? new Date(contactProfile.lastSeen).toLocaleString('ar-SA') : 'غير معروف'}\n`;
+            response += `*عدد الرسائل:* ${contactProfile.messageCount || 0}\n`;
+            
+            if (sessionInfo.active) {
+                response += `*حالة الجلسة:* ✅ نشطة\n`;
+                response += `*متبقي من الجلسة:* ${Math.floor(sessionInfo.remaining / 60)} دقيقة\n`;
+            } else {
+                response += `*حالة الجلسة:* ❌ غير نشطة\n`;
+            }
+            
+            response += `\n*📊 إحصائيات التواصل:*\n`;
+            const daysSince = contactProfile.firstSeen ? Math.ceil((Date.now() - contactProfile.firstSeen) / (1000 * 60 * 60 * 24)) : 1;
+            const dailyAvg = contactProfile.messageCount ? Math.round(contactProfile.messageCount / daysSince) : 0;
+            response += `• معدل الرسائل: ${dailyAvg} رسالة/يوم\n`;
+            response += `• مدة التواصل: ${daysSince} يوم\n`;
+            
+            response += `\n*🔍 المزيد:*\n`;
+            response += `للبحث عن جهات اتصال أخرى، اكتب "بحث الاسم"`;
+            
+            return response;
+        } catch (error) {
+            return `*👤 معلومات الجهة:*\n\n`
+                 + `حصل خطأ في جلب المعلومات:\n`
+                 + `${error.message}\n\n`
+                 + `يرجى التأكد من الرقم والمحاولة مرة أخرى.`;
+        }
+    }
+
     async handlePause(jid, pushName) {
         return `*⏸️ فهمت...*\n\n`
              + `راح أوقف الرد التلقائي خلاص.\n`
@@ -489,7 +721,8 @@ class SecretaryCommandSystem {
              + `✅ الرد التلقائي\n`
              + `✅ الذكاء الاصطناعي\n`
              + `✅ نظام التذكيرات\n`
-             + `✅ حفظ المحادثات\n\n`
+             + `✅ حفظ المحادثات\n`
+             + `✅ جهات الاتصال\n\n`
              + `_جاهز للعمل بكامل طاقتي_ 💪`;
     }
 
@@ -526,7 +759,8 @@ class SecretaryCommandSystem {
              + `• إحصائيات النظام\n`
              + `• قواعد البيانات\n`
              + `• ملفات الإعدادات\n`
-             + `• سجلات المحادثات\n\n`
+             + `• سجلات المحادثات\n`
+             + `• جهات الاتصال\n\n`
              + `_يُنصح بحفظ النسخ خارجياً بانتظام_ 🔒`;
     }
 
@@ -578,7 +812,8 @@ class SecretaryCommandSystem {
              + `لم يتم مسح:\n`
              + `• بيانات المستخدمين الأساسية\n`
              + `• ملفات الإعدادات\n`
-             + `• السجلات المهمة\n\n`
+             + `• السجلات المهمة\n`
+             + `• جهات الاتصال\n\n`
              + `_النظام جاهز للبدء من جديد_ 🔄`;
     }
 
